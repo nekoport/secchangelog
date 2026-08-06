@@ -1,0 +1,103 @@
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth-options";
+import {
+  apiSuccess,
+  validationError,
+  unauthorized,
+  forbidden,
+  internalError,
+} from "@/lib/security/api-response";
+import { updateSettingsSchema } from "@/lib/validations/settings";
+import { SystemSettingService } from "@/lib/services/system-setting.service";
+import { AuditTrailService } from "@/lib/services/audit-trail.service";
+import { getClientIp } from "@/lib/security/rate-limit";
+
+export async function GET() {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return unauthorized();
+
+  // All authenticated users can read public settings
+  const all = await SystemSettingService.getAll();
+
+  // Mask sensitive fields for non-admin
+  if (session.user.role !== "ADMIN") {
+    return apiSuccess({
+      "system.name": all["system.name"],
+      "system.logoPath": all["system.logoPath"],
+      "system.defaultTheme": all["system.defaultTheme"],
+      "ldap.enabled": all["ldap.enabled"],
+      "password.minLength": all["password.minLength"],
+      "password.requireUppercase": all["password.requireUppercase"],
+      "password.requireLowercase": all["password.requireLowercase"],
+      "password.requireNumber": all["password.requireNumber"],
+      "password.requireSymbol": all["password.requireSymbol"],
+      "upload.maxFileSizeMb": all["upload.maxFileSizeMb"],
+      "session.timeoutHours": all["session.timeoutHours"],
+    });
+  }
+
+  // For admin, mask LDAP bindPassword in response (security)
+  const safeAll = { ...all };
+  if (safeAll["ldap.bindPassword"]) {
+    safeAll["ldap.bindPassword"] = "********";
+  }
+
+  return apiSuccess(safeAll);
+}
+
+export async function PATCH(req: Request) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return unauthorized();
+  if (session.user.role !== "ADMIN") return forbidden();
+
+  let body: unknown;
+  try {
+    body = await req.json();
+  } catch {
+    return Response.json(
+      { error: { code: "VALIDATION_ERROR", message: "Body tidak valid" } },
+      { status: 400 }
+    );
+  }
+
+  const parsed = updateSettingsSchema.safeParse(body);
+  if (!parsed.success) return validationError(parsed.error);
+
+  const data = parsed.data;
+
+  // Skip bindPassword if it's the mask value
+  if (data["ldap.bindPassword"] === "********") {
+    delete data["ldap.bindPassword"];
+  }
+
+  // Only update non-empty password
+  if (data["ldap.bindPassword"] === "") {
+    delete data["ldap.bindPassword"];
+  }
+
+  if (Object.keys(data).length === 0) {
+    return apiSuccess({ updated: false });
+  }
+
+  try {
+    await SystemSettingService.setMany(
+      data as Record<string, string>,
+      session.user.id
+    );
+
+    await AuditTrailService.log({
+      userId: session.user.id,
+      action: "UPDATE_SYSTEM_SETTING",
+      entityType: "SystemSetting",
+      entityId: "settings",
+      metadata: { keys: Object.keys(data) },
+      ipAddress: getClientIp(req),
+      userAgent: req.headers.get("user-agent"),
+    });
+
+    return apiSuccess({ updated: true, keys: Object.keys(data) });
+  } catch (err) {
+    console.error("[API admin/settings PATCH]:", err);
+    return internalError();
+  }
+}

@@ -1,0 +1,132 @@
+{
+  "timestamp": "2026-08-06T06:44:13.093Z",
+  "summary": {
+    "total": 20,
+    "passed": 20,
+    "warned": 0,
+    "failed": 0,
+    "score": 100
+  },
+  "checks": [
+    {
+      "id": "A01-01",
+      "name": "RBAC roles defined",
+      "status": "PASS",
+      "detail": "1 users found with role field"
+    },
+    {
+      "id": "A01-02",
+      "name": "Auth middleware exists",
+      "status": "PASS",
+      "detail": "Middleware at src/middleware.ts"
+    },
+    {
+      "id": "A02-01",
+      "name": "Password hashing with bcrypt",
+      "status": "PASS",
+      "detail": "Hash prefix: $2b$"
+    },
+    {
+      "id": "A02-02",
+      "name": "bcrypt cost factor >= 12",
+      "status": "PASS",
+      "detail": "Cost factor: 12"
+    },
+    {
+      "id": "A02-03",
+      "name": "NEXTAUTH_SECRET configured",
+      "status": "PASS",
+      "detail": "Length: 68 chars"
+    },
+    {
+      "id": "A03-01",
+      "name": "Prisma ORM used",
+      "status": "PASS",
+      "detail": "Schema uses Prisma client generator"
+    },
+    {
+      "id": "A03-02",
+      "name": "Raw SQL usage (should be 0)",
+      "status": "PASS",
+      "detail": "0 files with raw SQL"
+    },
+    {
+      "id": "A04-01",
+      "name": "Audit trail table populated",
+      "status": "PASS",
+      "detail": "11 audit entries"
+    },
+    {
+      "id": "A04-02",
+      "name": "System settings table",
+      "status": "PASS",
+      "detail": "16 settings"
+    },
+    {
+      "id": "A05-01",
+      "name": "poweredByHeader disabled",
+      "status": "PASS",
+      "detail": "Check next.config.ts"
+    },
+    {
+      "id": "A07-01",
+      "name": "Account lockout field exists",
+      "status": "PASS",
+      "detail": "User model has lockedUntil field"
+    },
+    {
+      "id": "A07-02",
+      "name": "Failed attempts tracking",
+      "status": "PASS",
+      "detail": "User model has failedAttempts field"
+    },
+    {
+      "id": "A08-01",
+      "name": "File validation module exists",
+      "status": "PASS",
+      "detail": "src/lib/security/file-validation.ts"
+    },
+    {
+      "id": "A08-02",
+      "name": "Magic number validation",
+      "status": "PASS",
+      "detail": "Magic number signatures defined"
+    },
+    {
+      "id": "A08-03",
+      "name": "Path traversal prevention",
+      "status": "PASS",
+      "detail": "safeJoinPath function implemented"
+    },
+    {
+      "id": "A09-01",
+      "name": "Audit trail has multiple action types",
+      "status": "PASS",
+      "detail": "6 distinct actions"
+    },
+    {
+      "id": "A10-01",
+      "name": "LDAP filter escaping",
+      "status": "PASS",
+      "detail": "LDAP injection prevention"
+    },
+    {
+      "id": "UPLOAD-01",
+      "name": "File size check before read",
+      "status": "PASS",
+      "detail": "Size check implemented"
+    },
+    {
+      "id": "UPLOAD-02",
+      "name": "Auth required",
+      "status": "PASS",
+      "detail": "Session check present"
+    },
+    {
+      "id": "UPLOAD-03",
+      "name": "Rate limiting",
+      "status": "PASS",
+      "detail": "Rate limit applied"
+    }
+  ]
+}

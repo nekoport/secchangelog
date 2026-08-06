@@ -1,0 +1,22 @@
+{
+	admin off
+}
+
+:80 {
+	redir https://10.0.106.233:9445{uri} permanent
+}
+
+:443 {
+	tls /certs/fullchain.pem /certs/privkey.pem
+
+	header {
+		Strict-Transport-Security "max-age=63072000"
+		X-Content-Type-Options "nosniff"
+		X-Frame-Options "DENY"
+		Referrer-Policy "strict-origin-when-cross-origin"
+	}
+
+	handle {
+		reverse_proxy app:3000
+	}
+}

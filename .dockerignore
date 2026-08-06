@@ -1,0 +1,13 @@
+node_modules
+.next
+out
+build
+.git
+.env*
+dev.log
+server.log
+*.log
+documentation
+docs
+.gitignore
+.vercel

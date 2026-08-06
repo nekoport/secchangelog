@@ -1,0 +1,39 @@
+import { NextResponse } from "next/server";
+import type { NextRequest } from "next/server";
+import { getToken } from "next-auth/jwt";
+
+// This function runs on every request that matches the matcher config
+export async function middleware(req: NextRequest) {
+  const token = await getToken({
+    req,
+    secret: process.env.NEXTAUTH_SECRET,
+    cookieName: "next-auth.session-token",
+    secureCookie: process.env.NODE_ENV === "production",
+  });
+
+  const { pathname } = req.nextUrl;
+
+  // Allow public routes (already excluded by matcher, but double-check)
+  const publicPaths = ["/login"];
+  const isPublic = publicPaths.some((p) => pathname === p || pathname.startsWith(p + "/"));
+
+  if (isPublic) {
+    return NextResponse.next();
+  }
+
+  // If no token, redirect to login
+  if (!token) {
+    const loginUrl = new URL("/login", req.url);
+    loginUrl.searchParams.set("callbackUrl", pathname);
+    return NextResponse.redirect(loginUrl);
+  }
+
+  return NextResponse.next();
+}
+
+export const config = {
+  matcher: [
+    // Protect all routes except: login, API auth, health, static, uploads
+    "/((?!login|api/auth|api/health|_next/static|_next/image|favicon.ico|uploads|api/dashboard|api/device-types).*)",
+  ],
+};

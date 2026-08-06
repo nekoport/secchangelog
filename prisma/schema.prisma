@@ -1,0 +1,214 @@
+// Prisma schema for SecChangeLog
+// Production: MySQL 8 (change provider to "mysql")
+// Sandbox/Dev: SQLite (current provider)
+//
+// To switch to MySQL in production:
+// 1. Change provider to "mysql"
+// 2. Update DATABASE_URL in .env
+// 3. Run: bun run db:migrate --name init
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+// =====================================================
+// AUTHENTICATION (NextAuth.js v4 adapter compatible)
+// =====================================================
+
+model User {
+  id              String    @id @default(cuid())
+  email           String    @unique
+  name            String
+  passwordHash    String?
+  role            String    @default("ENGINEER") // ENGINEER | SUPERVISOR | ADMIN | AUDITOR
+  ldapDn          String?
+  isActive        Boolean   @default(true)
+  failedAttempts  Int       @default(0)
+  lockedUntil     DateTime?
+  lastLoginAt     DateTime?
+  lastLoginIp     String?
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Relations
+  accounts        Account[]
+  sessions        Session[]
+  changeLogsPic       ChangeLog[]    @relation("ChangeLogPic")
+  changeLogsCreator   ChangeLog[]    @relation("ChangeLogCreator")
+  changeLogsVerifier  ChangeLog[]    @relation("ChangeLogVerifier")
+  deleteRequestsRequested DeleteRequest[] @relation("DeleteRequestRequested")
+  deleteRequestsApproved  DeleteRequest[] @relation("DeleteRequestApproved")
+  auditTrails     AuditTrail[]
+  settingsUpdated SystemSetting[]
+
+  @@index([role])
+  @@index([isActive])
+}
+
+model Account {
+  id                String  @id @default(cuid())
+  userId            String
+  type              String
+  provider          String
+  providerAccountId String
+  refresh_token     String?
+  access_token      String?
+  expires_at        Int?
+  token_type        String?
+  scope             String?
+  id_token          String?
+  session_state     String?
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([provider, providerAccountId])
+  @@index([userId])
+}
+
+model Session {
+  id           String   @id @default(cuid())
+  sessionToken String   @unique
+  userId       String
+  expires      DateTime
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model VerificationToken {
+  identifier String
+  token      String   @unique
+  expires    DateTime
+
+  @@unique([identifier, token])
+}
+
+// =====================================================
+// DOMAIN MODELS
+// =====================================================
+
+model DeviceType {
+  id          String   @id @default(cuid())
+  name        String   @unique
+  description String?
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  changeLogs ChangeLog[]
+
+  @@index([isActive])
+}
+
+model ChangeLog {
+  id                String   @id @default(cuid())
+  ticketId          String   @unique // CHG-YYYY-NNNN
+  deviceTypeId      String
+  deviceName        String
+  deviceIp          String?
+  changeType        String   // ACL | ROUTING | NAT | INTERFACE | SECURITY_POLICY | VPN | OTHER
+  descriptionBefore String
+  descriptionAfter  String
+  reason            String
+  riskLevel         String   // LOW | MEDIUM | HIGH | CRITICAL
+  status            String   @default("IMPLEMENTED") // DRAFT | IMPLEMENTED | VERIFIED | FAILED
+  picId             String
+  rollbackPlan      String?
+  implementedAt     DateTime
+  verifiedAt        DateTime?
+  verifiedById      String?
+
+  isDeleted         Boolean  @default(false)
+  deletedAt         DateTime?
+
+  createdById       String
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  // Relations
+  deviceType        DeviceType     @relation(fields: [deviceTypeId], references: [id])
+  pic               User           @relation("ChangeLogPic", fields: [picId], references: [id])
+  creator           User           @relation("ChangeLogCreator", fields: [createdById], references: [id])
+  verifier          User?          @relation("ChangeLogVerifier", fields: [verifiedById], references: [id])
+  screenshots       Screenshot[]
+  deleteRequests    DeleteRequest[]
+
+  @@index([deviceTypeId, createdAt])
+  @@index([status, createdAt])
+  @@index([riskLevel, createdAt])
+  @@index([picId])
+  @@index([isDeleted])
+  @@index([implementedAt])
+  @@index([createdById])
+}
+
+model Screenshot {
+  id            String   @id @default(cuid())
+  changeLogId   String?  // nullable - allows upload before change log is created
+  filename      String   // UUID-based, safe filename
+  originalName  String   // sanitized original
+  mimeType      String
+  size          Int
+  type          String   // BEFORE | AFTER | OTHER
+  createdAt     DateTime @default(now())
+
+  changeLog ChangeLog? @relation(fields: [changeLogId], references: [id], onDelete: Cascade)
+
+  @@index([changeLogId, type])
+}
+
+model DeleteRequest {
+  id             String   @id @default(cuid())
+  changeLogId    String
+  requestedById  String
+  reason         String
+  status         String   @default("PENDING") // PENDING | APPROVED | REJECTED
+  approvedById   String?
+  approvedAt     DateTime?
+  approverNote   String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  changeLog  ChangeLog @relation(fields: [changeLogId], references: [id])
+  requestedBy User     @relation("DeleteRequestRequested", fields: [requestedById], references: [id])
+  approvedBy  User?    @relation("DeleteRequestApproved", fields: [approvedById], references: [id])
+
+  @@index([status, createdAt])
+  @@index([requestedById])
+  @@index([changeLogId])
+}
+
+model AuditTrail {
+  id         String   @id @default(cuid())
+  userId     String
+  action     String
+  entityType String
+  entityId   String
+  metadata   String   // JSON-encoded
+  ipAddress  String?
+  userAgent  String?
+  timestamp  DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, timestamp])
+  @@index([entityType, entityId])
+  @@index([action, timestamp])
+  @@index([timestamp])
+}
+
+model SystemSetting {
+  id           String   @id @default(cuid())
+  key          String   @unique
+  value        String   // JSON-encoded for complex values
+  updatedAt    DateTime @updatedAt
+  updatedById  String
+
+  updatedBy User @relation(fields: [updatedById], references: [id])
+}
