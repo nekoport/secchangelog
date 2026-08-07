@@ -25,9 +25,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, X, FileText, Image as ImageIcon, Loader2, Save, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
 import {
-  RISK_LEVELS,
   CHANGE_TYPES,
-  CHANGE_LOG_STATUS,
   SCREENSHOT_TYPES,
 } from "@/lib/constants";
 import type { ViewType } from "@/components/layout/app-shell";
@@ -63,8 +61,6 @@ export function EditLogView({
   const [descriptionBefore, setDescriptionBefore] = useState("");
   const [descriptionAfter, setDescriptionAfter] = useState("");
   const [reason, setReason] = useState("");
-  const [riskLevel, setRiskLevel] = useState("");
-  const [status, setStatus] = useState("IMPLEMENTED");
   const [rollbackPlan, setRollbackPlan] = useState("");
   const [implementedAt, setImplementedAt] = useState("");
   const [screenshots, setScreenshots] = useState<UploadedScreenshot[]>([]);
@@ -97,8 +93,6 @@ export function EditLogView({
         setDescriptionBefore(log.descriptionBefore);
         setDescriptionAfter(log.descriptionAfter);
         setReason(log.reason);
-        setRiskLevel(log.riskLevel);
-        setStatus(log.status);
         setRollbackPlan(log.rollbackPlan || "");
         setImplementedAt(
           new Date(log.implementedAt).toISOString().slice(0, 16)
@@ -164,7 +158,7 @@ export function EditLogView({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!deviceTypeId || !deviceName || !changeType || !riskLevel) {
+    if (!deviceTypeId || !deviceName || !changeType) {
       toast.error("Lengkapi semua field wajib");
       return;
     }
@@ -181,8 +175,6 @@ export function EditLogView({
           descriptionBefore,
           descriptionAfter,
           reason,
-          riskLevel,
-          status,
           rollbackPlan: rollbackPlan || undefined,
           implementedAt: new Date(implementedAt).toISOString(),
           screenshotIds: screenshots.map((s) => s.id),
@@ -255,9 +247,6 @@ export function EditLogView({
             Update informasi perubahan konfigurasi
           </p>
         </div>
-        <Badge variant="outline" className="text-xs">
-          {status}
-        </Badge>
       </div>
 
       <form onSubmit={handleSubmit} className="space-y-4">
@@ -331,7 +320,7 @@ export function EditLogView({
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label>
-                Kondisi Sebelum <span className="text-destructive">*</span>
+                Permintaan <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 value={descriptionBefore}
@@ -344,7 +333,7 @@ export function EditLogView({
             </div>
             <div className="space-y-2">
               <Label>
-                Kondisi Sesudah <span className="text-destructive">*</span>
+                Perubahan Konfigurasi <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 value={descriptionAfter}
@@ -357,7 +346,7 @@ export function EditLogView({
             </div>
             <div className="space-y-2">
               <Label>
-                Alasan Perubahan <span className="text-destructive">*</span>
+                Keterangan <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 value={reason}
@@ -367,50 +356,16 @@ export function EditLogView({
                 minLength={10}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label>
-                  Risk Level <span className="text-destructive">*</span>
-                </Label>
-                <Select value={riskLevel} onValueChange={setRiskLevel}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(RISK_LEVELS).map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {r}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(CHANGE_LOG_STATUS).map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label>
-                  Waktu Implementasi <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  type="datetime-local"
-                  value={implementedAt}
-                  onChange={(e) => setImplementedAt(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <Label>
+                Waktu Implementasi <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                type="datetime-local"
+                value={implementedAt}
+                onChange={(e) => setImplementedAt(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label>Rollback Plan</Label>

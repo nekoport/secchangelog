@@ -26,9 +26,7 @@ import { Badge } from "@/components/ui/badge";
 import { Upload, X, FileText, Image as ImageIcon, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
 import {
-  RISK_LEVELS,
   CHANGE_TYPES,
-  CHANGE_LOG_STATUS,
   SCREENSHOT_TYPES,
 } from "@/lib/constants";
 import type { ViewType } from "@/components/layout/app-shell";
@@ -60,8 +58,6 @@ export function NewLogView({
   const [descriptionBefore, setDescriptionBefore] = useState("");
   const [descriptionAfter, setDescriptionAfter] = useState("");
   const [reason, setReason] = useState("");
-  const [riskLevel, setRiskLevel] = useState("");
-  const [status, setStatus] = useState("IMPLEMENTED");
   const [rollbackPlan, setRollbackPlan] = useState("");
   const [implementedAt, setImplementedAt] = useState(
     new Date().toISOString().slice(0, 16)
@@ -125,7 +121,7 @@ export function NewLogView({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!deviceTypeId || !deviceName || !changeType || !riskLevel) {
+    if (!deviceTypeId || !deviceName || !changeType) {
       toast.error("Lengkapi semua field wajib");
       return;
     }
@@ -142,8 +138,6 @@ export function NewLogView({
           descriptionBefore,
           descriptionAfter,
           reason,
-          riskLevel,
-          status,
           rollbackPlan: rollbackPlan || undefined,
           implementedAt: new Date(implementedAt).toISOString(),
           screenshotIds: screenshots.map((s) => s.id),
@@ -252,19 +246,19 @@ export function NewLogView({
           <CardHeader>
             <CardTitle className="text-base">Detail Perubahan</CardTitle>
             <CardDescription>
-              Jelaskan kondisi sebelum dan sesudah perubahan
+              Jelaskan permintaan dan perubahan konfigurasi yang dilakukan
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="descriptionBefore">
-                Kondisi Sebelum <span className="text-destructive">*</span>
+                Permintaan <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="descriptionBefore"
                 value={descriptionBefore}
                 onChange={(e) => setDescriptionBefore(e.target.value)}
-                placeholder="Konfigurasi ACL sebelum perubahan..."
+                placeholder="Tulis permintaan perubahan..."
                 rows={4}
                 className="font-mono text-xs"
                 required
@@ -276,13 +270,13 @@ export function NewLogView({
             </div>
             <div className="space-y-2">
               <Label htmlFor="descriptionAfter">
-                Kondisi Sesudah <span className="text-destructive">*</span>
+                Perubahan Konfigurasi <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="descriptionAfter"
                 value={descriptionAfter}
                 onChange={(e) => setDescriptionAfter(e.target.value)}
-                placeholder="Konfigurasi ACL setelah perubahan..."
+                placeholder="Tulis rincian perubahan konfigurasi..."
                 rows={4}
                 className="font-mono text-xs"
                 required
@@ -294,63 +288,29 @@ export function NewLogView({
             </div>
             <div className="space-y-2">
               <Label htmlFor="reason">
-                Alasan Perubahan <span className="text-destructive">*</span>
+                Keterangan <span className="text-destructive">*</span>
               </Label>
               <Textarea
                 id="reason"
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
-                placeholder="Jelaskan alasan bisnis/teknis perubahan ini..."
+                placeholder="Berikan keterangan terkait perubahan ini..."
                 rows={3}
                 required
                 minLength={10}
               />
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-              <div className="space-y-2">
-                <Label htmlFor="riskLevel">
-                  Risk Level <span className="text-destructive">*</span>
-                </Label>
-                <Select value={riskLevel} onValueChange={setRiskLevel}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Pilih risk level" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(RISK_LEVELS).map((r) => (
-                      <SelectItem key={r} value={r}>
-                        {r}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="status">Status</Label>
-                <Select value={status} onValueChange={setStatus}>
-                  <SelectTrigger>
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {Object.keys(CHANGE_LOG_STATUS).map((s) => (
-                      <SelectItem key={s} value={s}>
-                        {s}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="implementedAt">
-                  Waktu Implementasi <span className="text-destructive">*</span>
-                </Label>
-                <Input
-                  id="implementedAt"
-                  type="datetime-local"
-                  value={implementedAt}
-                  onChange={(e) => setImplementedAt(e.target.value)}
-                  required
-                />
-              </div>
+            <div className="space-y-2">
+              <Label htmlFor="implementedAt">
+                Waktu Implementasi <span className="text-destructive">*</span>
+              </Label>
+              <Input
+                id="implementedAt"
+                type="datetime-local"
+                value={implementedAt}
+                onChange={(e) => setImplementedAt(e.target.value)}
+                required
+              />
             </div>
             <div className="space-y-2">
               <Label htmlFor="rollbackPlan">Rollback Plan</Label>

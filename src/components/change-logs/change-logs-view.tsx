@@ -45,11 +45,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import {
-  RISK_LEVELS,
-  CHANGE_LOG_STATUS,
   CHANGE_TYPES,
-  type RiskLevel,
-  type ChangeLogStatus,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -67,20 +63,6 @@ import {
 } from "@/components/ui/alert-dialog";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
-
-const RISK_BADGE_CLASS: Record<string, string> = {
-  LOW: "bg-risk-low/15 text-risk-low border-risk-low/30",
-  MEDIUM: "bg-risk-medium/15 text-risk-medium border-risk-medium/30",
-  HIGH: "bg-risk-high/15 text-risk-high border-risk-high/30",
-  CRITICAL: "bg-risk-critical/15 text-risk-critical border-risk-critical/30",
-};
-
-const STATUS_BADGE_CLASS: Record<string, string> = {
-  DRAFT: "bg-muted text-muted-foreground",
-  IMPLEMENTED: "bg-info/15 text-info border-info/30",
-  VERIFIED: "bg-risk-low/15 text-risk-low border-risk-low/30",
-  FAILED: "bg-destructive/15 text-destructive border-destructive/30",
-};
 
 interface ChangeLog {
   id: string;
@@ -108,8 +90,6 @@ export function ChangeLogsView({
   const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [deviceTypeId, setDeviceTypeId] = useState("");
-  const [riskLevel, setRiskLevel] = useState("");
-  const [status, setStatus] = useState("");
   const [changeType, setChangeType] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
@@ -126,8 +106,6 @@ export function ChangeLogsView({
   });
   if (search) params.set("search", search);
   if (deviceTypeId) params.set("deviceTypeId", deviceTypeId);
-  if (riskLevel) params.set("riskLevel", riskLevel);
-  if (status) params.set("status", status);
   if (changeType) params.set("changeType", changeType);
   if (from) params.set("from", new Date(from).toISOString());
   if (to) params.set("to", new Date(to).toISOString());
@@ -305,44 +283,6 @@ export function ChangeLogsView({
               </SelectContent>
             </Select>
             <Select
-              value={riskLevel || "all"}
-              onValueChange={(v) => {
-                setRiskLevel(v === "all" ? "" : v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Risk" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Risk</SelectItem>
-                {Object.keys(RISK_LEVELS).map((r) => (
-                  <SelectItem key={r} value={r}>
-                    {r}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              value={status || "all"}
-              onValueChange={(v) => {
-                setStatus(v === "all" ? "" : v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                {Object.keys(CHANGE_LOG_STATUS).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
               value={changeType || "all"}
               onValueChange={(v) => {
                 setChangeType(v === "all" ? "" : v);
@@ -392,7 +332,7 @@ export function ChangeLogsView({
                 className="text-xs"
               />
             </div>
-            {(from || to || search || deviceTypeId || riskLevel || status || changeType) && (
+            {(from || to || search || deviceTypeId || changeType) && (
               <div className="flex items-end">
                 <Button
                   type="button"
@@ -402,8 +342,6 @@ export function ChangeLogsView({
                   onClick={() => {
                     setSearch("");
                     setDeviceTypeId("");
-                    setRiskLevel("");
-                    setStatus("");
                     setChangeType("");
                     setFrom("");
                     setTo("");
@@ -448,8 +386,6 @@ export function ChangeLogsView({
                   <TableHead>Perangkat</TableHead>
                   <TableHead>IP</TableHead>
                   <TableHead>Tipe</TableHead>
-                  <TableHead>Risk</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>PIC</TableHead>
                   <TableHead>Tanggal</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
@@ -459,7 +395,7 @@ export function ChangeLogsView({
                 {isLoading ? (
                   [...Array(5)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(9)].map((_, j) => (
+                      {[...Array(7)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-5 w-full" />
                         </TableCell>
@@ -468,7 +404,7 @@ export function ChangeLogsView({
                   ))
                 ) : !data?.items || data.items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={9} className="text-center py-12">
+                    <TableCell colSpan={7} className="text-center py-12">
                       <FileText className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
                       <p className="text-sm text-muted-foreground">
                         Tidak ada change log ditemukan
@@ -506,28 +442,6 @@ export function ChangeLogsView({
                       <TableCell>
                         <Badge variant="outline" className="text-[10px]">
                           {log.changeType}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px] font-semibold",
-                            RISK_BADGE_CLASS[log.riskLevel]
-                          )}
-                        >
-                          {log.riskLevel}
-                        </Badge>
-                      </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant="outline"
-                          className={cn(
-                            "text-[10px]",
-                            STATUS_BADGE_CLASS[log.status]
-                          )}
-                        >
-                          {log.status}
                         </Badge>
                       </TableCell>
                       <TableCell className="text-xs">{log.pic.name}</TableCell>
@@ -792,18 +706,6 @@ function ChangeLogDetailDialog({
               <span className="font-mono text-base font-bold">
                 {data.ticketId}
               </span>
-              <Badge
-                variant="outline"
-                className={cn("text-[10px]", RISK_BADGE_CLASS[data.riskLevel])}
-              >
-                {data.riskLevel}
-              </Badge>
-              <Badge
-                variant="outline"
-                className={cn("text-[10px]", STATUS_BADGE_CLASS[data.status])}
-              >
-                {data.status}
-              </Badge>
             </div>
 
             <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-md">
@@ -849,7 +751,7 @@ function ChangeLogDetailDialog({
 
             <div>
               <p className="text-[10px] uppercase text-muted-foreground mb-1">
-                Kondisi Sebelum
+                Permintaan
               </p>
               <pre className="text-xs bg-muted/40 p-3 rounded-md whitespace-pre-wrap font-mono">
                 {data.descriptionBefore}
@@ -857,7 +759,7 @@ function ChangeLogDetailDialog({
             </div>
             <div>
               <p className="text-[10px] uppercase text-muted-foreground mb-1">
-                Kondisi Sesudah
+                Perubahan Konfigurasi
               </p>
               <pre className="text-xs bg-muted/40 p-3 rounded-md whitespace-pre-wrap font-mono">
                 {data.descriptionAfter}
@@ -865,7 +767,7 @@ function ChangeLogDetailDialog({
             </div>
             <div>
               <p className="text-[10px] uppercase text-muted-foreground mb-1">
-                Alasan
+                Keterangan
               </p>
               <p className="text-xs">{data.reason}</p>
             </div>

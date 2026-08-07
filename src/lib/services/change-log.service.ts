@@ -50,7 +50,7 @@ export class ChangeLogService {
           descriptionBefore: input.descriptionBefore,
           descriptionAfter: input.descriptionAfter,
           reason: input.reason,
-          riskLevel: input.riskLevel,
+          riskLevel: input.riskLevel || "LOW",
           status: input.status || "IMPLEMENTED",
           picId: userId, // PIC is the creator by default
           rollbackPlan: input.rollbackPlan || null,

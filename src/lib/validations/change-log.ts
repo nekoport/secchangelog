@@ -22,20 +22,21 @@ export const createChangeLogSchema = z.object({
   }),
   descriptionBefore: z
     .string()
-    .min(10, "Deskripsi kondisi sebelum minimal 10 karakter")
+    .min(10, "Permintaan minimal 10 karakter")
     .max(5000, "Deskripsi maksimal 5000 karakter"),
   descriptionAfter: z
     .string()
-    .min(10, "Deskripsi kondisi setelah minimal 10 karakter")
+    .min(10, "Perubahan konfigurasi minimal 10 karakter")
     .max(5000, "Deskripsi maksimal 5000 karakter"),
   reason: z
     .string()
-    .min(10, "Alasan perubahan minimal 10 karakter")
-    .max(2000, "Alasan maksimal 2000 karakter"),
-  riskLevel: z.enum(
-    Object.keys(RISK_LEVELS) as [string, ...string[]],
-    { message: "Risk level tidak valid" }
-  ),
+    .min(10, "Keterangan minimal 10 karakter")
+    .max(2000, "Keterangan maksimal 2000 karakter"),
+  riskLevel: z
+    .enum(Object.keys(RISK_LEVELS) as [string, ...string[]], {
+      message: "Risk level tidak valid",
+    })
+    .optional(),
   status: z
     .enum(Object.keys(CHANGE_LOG_STATUS) as [string, ...string[]])
     .optional()

@@ -14,7 +14,6 @@ import {
   FileText,
   TrendingUp,
   Clock,
-  Shield,
 } from "lucide-react";
 import {
   Area,
@@ -22,9 +21,6 @@ import {
   Bar,
   BarChart,
   CartesianGrid,
-  Cell,
-  Pie,
-  PieChart,
   ResponsiveContainer,
   Tooltip,
   XAxis,
@@ -53,20 +49,6 @@ interface DashboardStats {
     user: { id: string; name: string; email: string; role: string };
   }>;
 }
-
-const RISK_COLORS: Record<string, string> = {
-  LOW: "var(--low)",
-  MEDIUM: "var(--medium)",
-  HIGH: "var(--high)",
-  CRITICAL: "var(--critical)",
-};
-
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: "Draft",
-  IMPLEMENTED: "Implemented",
-  VERIFIED: "Verified",
-  FAILED: "Failed",
-};
 
 const ACTION_LABELS: Record<string, string> = {
   LOGIN_SUCCESS: "Login berhasil",
@@ -165,11 +147,6 @@ export function DashboardView({
     ? Math.round(((data.thisMonth - data.lastMonth) / data.lastMonth) * 100)
     : 100;
 
-  const riskData = Object.entries(data.byRiskLevel).map(([name, value]) => ({
-    name,
-    value,
-  }));
-
   const trendData = data.trend30Days.map((d) => ({
     ...d,
     date: d.date.slice(5), // MM-DD
@@ -192,7 +169,7 @@ export function DashboardView({
       </div>
 
       {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-3 gap-4">
         <StatCard
           label="Total Change Logs"
           value={data.totalChangeLogs}
@@ -212,13 +189,6 @@ export function DashboardView({
           icon={TrendingUp}
         />
         <StatCard
-          label="Perlu Verifikasi"
-          value={data.byStatus.IMPLEMENTED || 0}
-          delta="Menunggu verifikasi"
-          icon={Shield}
-          variant="warning"
-        />
-        <StatCard
           label="Pending Hapus"
           value={data.pendingDeleteRequests}
           delta="Butuh approval"
@@ -227,10 +197,10 @@ export function DashboardView({
         />
       </div>
 
-      {/* Charts Grid */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-4">
+      {/* Charts */}
+      <div className="grid grid-cols-1 gap-4">
         {/* Trend 30 days */}
-        <Card className="lg:col-span-2">
+        <Card>
           <CardHeader>
             <CardTitle className="text-base">Tren 30 Hari Terakhir</CardTitle>
             <CardDescription>Jumlah perubahan per hari</CardDescription>
@@ -292,60 +262,6 @@ export function DashboardView({
                 />
               </AreaChart>
             </ResponsiveContainer>
-          </CardContent>
-        </Card>
-
-        {/* Risk Level Distribution */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="text-base">Distribusi Risk Level</CardTitle>
-            <CardDescription>Total per kategori</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <ResponsiveContainer width="100%" height={220}>
-              <PieChart>
-                <Pie
-                  data={riskData}
-                  cx="50%"
-                  cy="50%"
-                  innerRadius={50}
-                  outerRadius={80}
-                  paddingAngle={2}
-                  dataKey="value"
-                  nameKey="name"
-                >
-                  {riskData.map((entry) => (
-                    <Cell
-                      key={entry.name}
-                      fill={RISK_COLORS[entry.name] || "var(--muted)"}
-                    />
-                  ))}
-                </Pie>
-                <Tooltip
-                  contentStyle={{
-                    background: "var(--popover)",
-                    border: "1px solid var(--border)",
-                    borderRadius: "8px",
-                    fontSize: "12px",
-                    color: "var(--popover-foreground)",
-                  }}
-                />
-              </PieChart>
-            </ResponsiveContainer>
-            <div className="grid grid-cols-2 gap-2 mt-3 text-xs">
-              {riskData.map((r) => (
-                <div key={r.name} className="flex items-center gap-2">
-                  <div
-                    className="h-2 w-2 rounded-full"
-                    style={{ background: RISK_COLORS[r.name] }}
-                  />
-                  <span className="text-muted-foreground">{r.name}</span>
-                  <span className="font-semibold ml-auto tabular-nums">
-                    {r.value}
-                  </span>
-                </div>
-              ))}
-            </div>
           </CardContent>
         </Card>
       </div>

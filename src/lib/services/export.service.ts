@@ -104,13 +104,11 @@ export class ExportService {
       "Nama Perangkat": log.deviceName,
       "IP Address": log.deviceIp || "",
       "Jenis Perubahan": log.changeType,
-      "Risk Level": log.riskLevel,
-      "Status": log.status,
       "PIC": log.pic.name,
       "Pencatat": log.creator.name,
-      "Deskripsi Sebelum": log.descriptionBefore,
-      "Deskripsi Sesudah": log.descriptionAfter,
-      "Alasan": log.reason,
+      "Permintaan": log.descriptionBefore,
+      "Perubahan Konfigurasi": log.descriptionAfter,
+      "Keterangan": log.reason,
       "Rollback Plan": log.rollbackPlan || "",
       "Diverifikasi Oleh": log.verifier?.name || "",
       "Tanggal Diverifikasi": log.verifiedAt
@@ -122,26 +120,13 @@ export class ExportService {
     const ws1 = XLSX.utils.json_to_sheet(sheet1Data);
     ws1["!cols"] = [
       { wch: 14 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 14 },
-      { wch: 16 }, { wch: 10 }, { wch: 12 }, { wch: 18 }, { wch: 18 },
-      { wch: 50 }, { wch: 50 }, { wch: 40 }, { wch: 40 }, { wch: 18 },
-      { wch: 20 }, { wch: 20 },
+      { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 50 }, { wch: 50 },
+      { wch: 40 }, { wch: 40 }, { wch: 18 }, { wch: 20 }, { wch: 20 },
     ];
 
     // Sheet 2: Summary
     const summaryData = [
       { Metric: "Total Change Logs", Value: items.length },
-      { Metric: "", Value: "" },
-      { Metric: "By Risk Level", Value: "" },
-      { Metric: "  LOW", Value: items.filter((i) => i.riskLevel === "LOW").length },
-      { Metric: "  MEDIUM", Value: items.filter((i) => i.riskLevel === "MEDIUM").length },
-      { Metric: "  HIGH", Value: items.filter((i) => i.riskLevel === "HIGH").length },
-      { Metric: "  CRITICAL", Value: items.filter((i) => i.riskLevel === "CRITICAL").length },
-      { Metric: "", Value: "" },
-      { Metric: "By Status", Value: "" },
-      { Metric: "  DRAFT", Value: items.filter((i) => i.status === "DRAFT").length },
-      { Metric: "  IMPLEMENTED", Value: items.filter((i) => i.status === "IMPLEMENTED").length },
-      { Metric: "  VERIFIED", Value: items.filter((i) => i.status === "VERIFIED").length },
-      { Metric: "  FAILED", Value: items.filter((i) => i.status === "FAILED").length },
       { Metric: "", Value: "" },
       { Metric: "By Device Type", Value: "" },
       ...Object.entries(
@@ -294,8 +279,6 @@ export class ExportService {
         ["Nama Perangkat", log.deviceName],
         ["IP Address", log.deviceIp || "-"],
         ["Jenis Perubahan", log.changeType],
-        ["Risk Level", log.riskLevel],
-        ["Status", log.status],
         ["PIC", log.pic.name],
         ["Pencatat", log.creator.name],
         ["Waktu Implementasi", log.implementedAt.toISOString().slice(0, 19).replace("T", " ")],
@@ -314,7 +297,7 @@ export class ExportService {
       y = this.drawSectionTitle(doc, "Deskripsi Perubahan", 50, y);
       y += 10;
 
-      doc.font("Helvetica-Bold").fontSize(9).text("KONDISI SEBELUM:", 50, y);
+      doc.font("Helvetica-Bold").fontSize(9).text("PERMINTAAN:", 50, y);
       y += 14;
       doc.font("Helvetica").fontSize(9).text(log.descriptionBefore, 50, y, {
         width: pageWidth,
@@ -322,7 +305,7 @@ export class ExportService {
       });
       y = (doc.y as number) + 14;
 
-      doc.font("Helvetica-Bold").fontSize(9).text("KONDISI SESUDAH:", 50, y);
+      doc.font("Helvetica-Bold").fontSize(9).text("PERUBAHAN KONFIGURASI:", 50, y);
       y += 14;
       doc.font("Helvetica").fontSize(9).text(log.descriptionAfter, 50, y, {
         width: pageWidth,
@@ -331,10 +314,10 @@ export class ExportService {
       y = (doc.y as number) + 14;
 
       // Section 3: Reason & Rollback
-      y = this.drawSectionTitle(doc, "Alasan & Rollback Plan", 50, y);
+      y = this.drawSectionTitle(doc, "Keterangan & Rollback Plan", 50, y);
       y += 10;
 
-      doc.font("Helvetica-Bold").fontSize(9).text("ALASAN PERUBAHAN:", 50, y);
+      doc.font("Helvetica-Bold").fontSize(9).text("KETERANGAN:", 50, y);
       y += 14;
       doc.font("Helvetica").fontSize(9).text(log.reason, 50, y, {
         width: pageWidth,

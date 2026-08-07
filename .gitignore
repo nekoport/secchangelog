@@ -61,3 +61,6 @@ test-pdf.sh
 pdfcm.js
 pdfdebug.sh
 worklog.md
+fn-create-nofield.sh
+chk-excel.sh
+chk-pdf.sh
