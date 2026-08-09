@@ -20,7 +20,7 @@ import { ThemeToggle } from "@/components/shared/theme-toggle";
 function LoginForm() {
   const router = useRouter();
   const { data: session, status } = useSession();
-  const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -38,7 +38,7 @@ function LoginForm() {
 
     try {
       const result = await signIn("credentials", {
-        email,
+        username,
         password,
         redirect: false,
       });
@@ -89,17 +89,17 @@ function LoginForm() {
                 </div>
               )}
               <div className="space-y-2">
-                <Label htmlFor="email">Email</Label>
+                <Label htmlFor="username">Username / Email</Label>
                 <Input
-                  id="email"
-                  type="email"
-                  value={email}
-                  onChange={(e) => setEmail(e.target.value)}
+                  id="username"
+                  type="text"
+                  value={username}
+                  onChange={(e) => setUsername(e.target.value)}
                   required
                   disabled={loading}
-                  autoComplete="email"
+                  autoComplete="username"
                   autoFocus
-                  placeholder="user@company.com"
+                  placeholder="username atau email"
                 />
               </div>
               <div className="space-y-2">
@@ -118,7 +118,7 @@ function LoginForm() {
             <CardFooter>
               <Button
                 type="submit"
-                disabled={loading || !email || !password}
+                disabled={loading || !username || !password}
                 className="w-full"
               >
                 {loading ? (

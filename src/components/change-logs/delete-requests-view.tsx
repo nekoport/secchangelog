@@ -37,7 +37,6 @@ interface DeleteRequest {
     id: string;
     ticketId: string;
     deviceName: string;
-    riskLevel: string;
     isDeleted: boolean;
   };
   requestedBy: { id: string; name: string };
@@ -58,6 +57,7 @@ const STATUS_BADGE: Record<string, string> = {
 export function DeleteRequestsView() {
   const { data: session } = useSession();
   const qc = useQueryClient();
+  const [page, setPage] = useState(1);
   const [filter, setFilter] = useState("PENDING");
   const [actionTarget, setActionTarget] = useState<{
     id: string;
@@ -70,17 +70,25 @@ export function DeleteRequestsView() {
     session?.user?.role === "SUPERVISOR" || session?.user?.role === "ADMIN";
 
   const { data, isLoading } = useQuery({
-    queryKey: ["delete-requests", filter],
+    queryKey: ["delete-requests", filter, page],
     queryFn: async () => {
       const params = new URLSearchParams({
-        page: "1",
-        pageSize: "50",
+        page: String(page),
+        pageSize: "20",
       });
       if (filter !== "ALL") params.set("status", filter);
       const res = await fetch(`/api/delete-requests?${params}`);
       if (!res.ok) throw new Error("Failed");
       const json = await res.json();
-      return json.data as DeleteRequest[];
+      return {
+        items: json.data as DeleteRequest[],
+        meta: json.meta as {
+          page: number;
+          pageSize: number;
+          total: number;
+          totalPages: number;
+        },
+      };
     },
   });
 
@@ -134,7 +142,10 @@ export function DeleteRequestsView() {
               key={f}
               variant={filter === f ? "default" : "outline"}
               size="sm"
-              onClick={() => setFilter(f)}
+              onClick={() => {
+                setFilter(f);
+                setPage(1);
+              }}
             >
               {f === "ALL" ? "Semua" : f}
             </Button>
@@ -150,7 +161,6 @@ export function DeleteRequestsView() {
                 <TableRow>
                   <TableHead>Ticket</TableHead>
                   <TableHead>Perangkat</TableHead>
-                  <TableHead>Risk</TableHead>
                   <TableHead>Diajukan Oleh</TableHead>
                   <TableHead>Alasan</TableHead>
                   <TableHead>Status</TableHead>
@@ -162,16 +172,16 @@ export function DeleteRequestsView() {
                 {isLoading ? (
                   [...Array(3)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(7)].map((_, j) => (
+                      {[...Array(6)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-5 w-full" />
                         </TableCell>
                       ))}
                     </TableRow>
                   ))
-                ) : !data || data.length === 0 ? (
+                ) : !data?.items || data.items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={canApprove ? 8 : 7} className="text-center py-12">
+                    <TableCell colSpan={canApprove ? 7 : 6} className="text-center py-12">
                       <Clock className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
                       <p className="text-sm text-muted-foreground">
                         Tidak ada pengajuan
@@ -179,7 +189,7 @@ export function DeleteRequestsView() {
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data.map((dr) => (
+                  data.items.map((dr) => (
                     <TableRow key={dr.id}>
                       <TableCell className="font-mono text-xs font-semibold">
                         {dr.changeLog.ticketId}
@@ -194,11 +204,6 @@ export function DeleteRequestsView() {
                       </TableCell>
                       <TableCell className="text-xs">
                         {dr.changeLog.deviceName}
-                      </TableCell>
-                      <TableCell>
-                        <Badge variant="outline" className="text-[9px]">
-                          {dr.changeLog.riskLevel}
-                        </Badge>
                       </TableCell>
                       <TableCell className="text-xs">
                         {dr.requestedBy.name}
@@ -266,6 +271,37 @@ export function DeleteRequestsView() {
               </TableBody>
             </Table>
           </div>
+
+          {data?.meta && data.meta.totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Menampilkan {(data.meta.page - 1) * data.meta.pageSize + 1}-
+                {Math.min(data.meta.page * data.meta.pageSize, data.meta.total)}{" "}
+                dari {data.meta.total}
+              </p>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Sebelumnya
+                </Button>
+                <span className="px-3 py-1 text-xs">
+                  {data.meta.page} / {data.meta.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= data.meta.totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Selanjutnya
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 

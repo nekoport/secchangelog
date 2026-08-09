@@ -33,13 +33,14 @@ import {
   TableRow,
 } from "@/components/ui/table";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Plus, Loader2, Lock, Unlock, KeyRound } from "lucide-react";
+import { Plus, Loader2, Lock, Unlock, KeyRound, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
 
 interface User {
   id: string;
   email: string;
+  username: string | null;
   name: string;
   role: string;
   ldapDn: string | null;
@@ -60,15 +61,18 @@ const ROLE_BADGE: Record<string, string> = {
 
 export function UsersView() {
   const qc = useQueryClient();
+  const [page, setPage] = useState(1);
   const [search, setSearch] = useState("");
   const [roleFilter, setRoleFilter] = useState("");
   const [showCreate, setShowCreate] = useState(false);
   const [editTarget, setEditTarget] = useState<User | null>(null);
   const [resetTarget, setResetTarget] = useState<User | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<User | null>(null);
   const [submitting, setSubmitting] = useState(false);
 
   // Form state for create
   const [email, setEmail] = useState("");
+  const [username, setUsername] = useState("");
   const [name, setName] = useState("");
   const [password, setPassword] = useState("");
   const [role, setRole] = useState("ENGINEER");
@@ -77,7 +81,7 @@ export function UsersView() {
   // Form state for reset
   const [newPassword, setNewPassword] = useState("");
 
-  const params = new URLSearchParams({ page: "1", pageSize: "100" });
+  const params = new URLSearchParams({ page: String(page), pageSize: "20" });
   if (search) params.set("search", search);
   if (roleFilter) params.set("role", roleFilter);
 
@@ -87,7 +91,15 @@ export function UsersView() {
       const res = await fetch(`/api/admin/users?${params}`);
       if (!res.ok) throw new Error("Failed");
       const json = await res.json();
-      return json.data as User[];
+      return {
+        items: json.data as User[],
+        meta: json.meta as {
+          page: number;
+          pageSize: number;
+          total: number;
+          totalPages: number;
+        },
+      };
     },
   });
 
@@ -105,7 +117,7 @@ export function UsersView() {
       const res = await fetch("/api/admin/users", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email, name, password, role, ldapDn }),
+        body: JSON.stringify({ email, name, username, password, role, ldapDn }),
       });
       if (!res.ok) {
         const err = await res.json();
@@ -114,6 +126,7 @@ export function UsersView() {
       toast.success("User berhasil dibuat");
       setShowCreate(false);
       setEmail("");
+      setUsername("");
       setName("");
       setPassword("");
       setRole("ENGINEER");
@@ -179,6 +192,27 @@ export function UsersView() {
     }
   }
 
+  async function handleDeleteUser() {
+    if (!deleteTarget) return;
+    setSubmitting(true);
+    try {
+      const res = await fetch(`/api/admin/users/${deleteTarget.id}`, {
+        method: "DELETE",
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || "Gagal menghapus");
+      }
+      toast.success("User dihapus (dinonaktifkan)");
+      setDeleteTarget(null);
+      qc.invalidateQueries({ queryKey: ["admin-users"] });
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSubmitting(false);
+    }
+  }
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between flex-wrap gap-3">
@@ -200,11 +234,17 @@ export function UsersView() {
             <Input
               placeholder="Cari nama atau email..."
               value={search}
-              onChange={(e) => setSearch(e.target.value)}
+              onChange={(e) => {
+                setSearch(e.target.value);
+                setPage(1);
+              }}
             />
             <Select
               value={roleFilter || "all"}
-              onValueChange={(v) => setRoleFilter(v === "all" ? "" : v)}
+              onValueChange={(v) => {
+                setRoleFilter(v === "all" ? "" : v);
+                setPage(1);
+              }}
             >
               <SelectTrigger>
                 <SelectValue placeholder="Filter role" />
@@ -228,6 +268,7 @@ export function UsersView() {
               <TableHeader>
                 <TableRow>
                   <TableHead>Nama</TableHead>
+                  <TableHead>Username</TableHead>
                   <TableHead>Email</TableHead>
                   <TableHead>Role</TableHead>
                   <TableHead>Status</TableHead>
@@ -239,23 +280,23 @@ export function UsersView() {
                 {isLoading ? (
                   [...Array(3)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(6)].map((_, j) => (
+                      {[...Array(7)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-5 w-full" />
                         </TableCell>
                       ))}
                     </TableRow>
                   ))
-                ) : !data || data.length === 0 ? (
+                ) : !data?.items || data.items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={6} className="text-center py-12">
+                    <TableCell colSpan={7} className="text-center py-12">
                       <p className="text-sm text-muted-foreground">
                         Tidak ada user
                       </p>
                     </TableCell>
                   </TableRow>
                 ) : (
-                  data.map((user) => (
+                  data.items.map((user) => (
                     <TableRow
                       key={user.id}
                       className={cn(!user.isActive && "opacity-50")}
@@ -267,6 +308,9 @@ export function UsersView() {
                             LDAP: {user.ldapDn.slice(0, 30)}...
                           </div>
                         )}
+                      </TableCell>
+                      <TableCell className="text-xs font-mono">
+                        {user.username || "-"}
                       </TableCell>
                       <TableCell className="text-xs">{user.email}</TableCell>
                       <TableCell>
@@ -354,6 +398,15 @@ export function UsersView() {
                               <Unlock className="h-3.5 w-3.5" />
                             )}
                           </Button>
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8 text-destructive"
+                            onClick={() => setDeleteTarget(user)}
+                            title="Hapus user"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" />
+                          </Button>
                         </div>
                       </TableCell>
                     </TableRow>
@@ -362,6 +415,37 @@ export function UsersView() {
               </TableBody>
             </Table>
           </div>
+
+          {data?.meta && data.meta.totalPages > 1 && (
+            <div className="flex items-center justify-between px-4 py-3 border-t border-border">
+              <p className="text-xs text-muted-foreground">
+                Menampilkan {(data.meta.page - 1) * data.meta.pageSize + 1}-
+                {Math.min(data.meta.page * data.meta.pageSize, data.meta.total)}{" "}
+                dari {data.meta.total}
+              </p>
+              <div className="flex gap-1">
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page === 1}
+                  onClick={() => setPage((p) => p - 1)}
+                >
+                  Sebelumnya
+                </Button>
+                <span className="px-3 py-1 text-xs">
+                  {data.meta.page} / {data.meta.totalPages}
+                </span>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  disabled={page >= data.meta.totalPages}
+                  onClick={() => setPage((p) => p + 1)}
+                >
+                  Selanjutnya
+                </Button>
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
 
@@ -387,6 +471,14 @@ export function UsersView() {
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 placeholder="user@company.com"
+              />
+            </div>
+            <div className="space-y-2">
+              <Label>Username (opsional)</Label>
+              <Input
+                value={username}
+                onChange={(e) => setUsername(e.target.value)}
+                placeholder="contoh: jdoe (otomatis dari email jika kosong)"
               />
             </div>
             <div className="space-y-2">
@@ -487,6 +579,51 @@ export function UsersView() {
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : null}
               Reset Password
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    {/* Delete User Confirmation Dialog */}
+      <Dialog
+        open={!!deleteTarget}
+        onOpenChange={(open) => {
+          if (!open) setDeleteTarget(null);
+        }}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Hapus User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <p className="text-sm text-muted-foreground">
+              Yakin ingin menghapus user{" "}
+              <span className="font-semibold text-foreground">
+                {deleteTarget?.name}
+              </span>{" "}
+              ({deleteTarget?.email})?
+            </p>
+            <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30 text-sm text-destructive">
+              Tindakan ini akan menonaktifkan akun. User tidak akan bisa login,
+              namun riwayat aktivitas tetap tersimpan.
+            </div>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setDeleteTarget(null)}
+              disabled={submitting}
+            >
+              Batal
+            </Button>
+            <Button
+              variant="destructive"
+              onClick={handleDeleteUser}
+              disabled={submitting}
+            >
+              {submitting ? (
+                <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+              ) : null}
+              Ya, Hapus
             </Button>
           </DialogFooter>
         </DialogContent>

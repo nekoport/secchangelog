@@ -80,8 +80,12 @@ export const AUDIT_ACTIONS = {
   CREATE_DEVICE_TYPE: "CREATE_DEVICE_TYPE",
   UPDATE_DEVICE_TYPE: "UPDATE_DEVICE_TYPE",
   DEACTIVATE_DEVICE_TYPE: "DEACTIVATE_DEVICE_TYPE",
+  CREATE_DEVICE: "CREATE_DEVICE",
+  UPDATE_DEVICE: "UPDATE_DEVICE",
+  DEACTIVATE_DEVICE: "DEACTIVATE_DEVICE",
   UPDATE_SYSTEM_SETTING: "UPDATE_SYSTEM_SETTING",
   UPDATE_SYSTEM_LOGO: "UPDATE_SYSTEM_LOGO",
+  UPDATE_SYSTEM_FAVICON: "UPDATE_SYSTEM_FAVICON",
   EXPORT_EXCEL: "EXPORT_EXCEL",
   EXPORT_PDF: "EXPORT_PDF",
   CHANGE_THEME: "CHANGE_THEME",
@@ -120,20 +124,21 @@ export const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 min
 // Session
 export const SESSION_MAX_AGE_HOURS = 8;
 
-// Default device types
+// Default device types (general categories)
 export const DEFAULT_DEVICE_TYPES = [
-  { name: "Switch", description: "Network switch (Cisco, Aruba, HP, dll)" },
-  { name: "Router MikroTik", description: "RouterOS-based devices" },
-  { name: "Firewall Palo Alto", description: "Palo Alto Networks PAN-OS" },
-  { name: "Firewall Fortinet", description: "FortiGate firewall" },
-  { name: "Server Linux", description: "Linux server configuration" },
-  { name: "Server Windows", description: "Windows server configuration" },
+  { name: "Firewall", description: "Perangkat firewall jaringan" },
+  { name: "Network", description: "Perangkat jaringan (router, switch, dll)" },
+  { name: "Server", description: "Server fisik maupun virtual" },
+  { name: "Virtual Machine", description: "Virtual machine / hypervisor" },
+  { name: "Storage", description: "Penyimpanan / SAN / NAS" },
+  { name: "Others", description: "Perangkat lainnya" },
 ];
 
 // Default system settings
 export const DEFAULT_SETTINGS = {
   "system.name": "SecChangeLog",
   "system.logoPath": "",
+  "system.faviconPath": "",
   "system.defaultTheme": "dark",
   "ldap.enabled": "false",
   "ldap.url": "",

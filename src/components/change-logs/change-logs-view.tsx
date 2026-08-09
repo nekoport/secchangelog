@@ -70,6 +70,7 @@ interface ChangeLog {
   deviceType: { id: string; name: string };
   deviceName: string;
   deviceIp: string | null;
+  requestor: string | null;
   changeType: string;
   riskLevel: string;
   status: string;
@@ -385,6 +386,7 @@ export function ChangeLogsView({
                   <TableHead>Ticket ID</TableHead>
                   <TableHead>Perangkat</TableHead>
                   <TableHead>IP</TableHead>
+                  <TableHead>Pemohon</TableHead>
                   <TableHead>Tipe</TableHead>
                   <TableHead>PIC</TableHead>
                   <TableHead>Tanggal</TableHead>
@@ -395,7 +397,7 @@ export function ChangeLogsView({
                 {isLoading ? (
                   [...Array(5)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(7)].map((_, j) => (
+                      {[...Array(8)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-5 w-full" />
                         </TableCell>
@@ -404,7 +406,7 @@ export function ChangeLogsView({
                   ))
                 ) : !data?.items || data.items.length === 0 ? (
                   <TableRow>
-                    <TableCell colSpan={7} className="text-center py-12">
+                    <TableCell colSpan={8} className="text-center py-12">
                       <FileText className="h-10 w-10 mx-auto text-muted-foreground/50 mb-2" />
                       <p className="text-sm text-muted-foreground">
                         Tidak ada change log ditemukan
@@ -438,6 +440,9 @@ export function ChangeLogsView({
                       </TableCell>
                       <TableCell className="text-xs text-muted-foreground font-mono">
                         {log.deviceIp || "-"}
+                      </TableCell>
+                      <TableCell className="text-xs">
+                        {log.requestor || "-"}
                       </TableCell>
                       <TableCell>
                         <Badge variant="outline" className="text-[10px]">
@@ -665,7 +670,7 @@ function ChangeLogDetailDialog({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>Detail Change Log</span>
@@ -740,6 +745,12 @@ function ChangeLogDetailDialog({
                   PIC
                 </p>
                 <p>{data.pic.name}</p>
+              </div>
+              <div>
+                <p className="text-[10px] uppercase text-muted-foreground">
+                  Pemohon
+                </p>
+                <p>{data.requestor || "-"}</p>
               </div>
               <div>
                 <p className="text-[10px] uppercase text-muted-foreground">

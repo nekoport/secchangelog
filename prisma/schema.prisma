@@ -23,6 +23,7 @@ datasource db {
 model User {
   id              String    @id @default(cuid())
   email           String    @unique
+  username        String?   @unique
   name            String
   passwordHash    String?
   role            String    @default("ENGINEER") // ENGINEER | SUPERVISOR | ADMIN | AUDITOR
@@ -101,15 +102,34 @@ model DeviceType {
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
+  devices    Device[]
   changeLogs ChangeLog[]
 
   @@index([isActive])
+}
+
+model Device {
+  id           String   @id @default(cuid())
+  deviceTypeId String
+  name         String   // hostname
+  ipAddress    String?
+  isActive     Boolean  @default(true)
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  deviceType DeviceType @relation(fields: [deviceTypeId], references: [id], onDelete: Cascade)
+  changeLogs ChangeLog[]
+
+  @@unique([deviceTypeId, name])
+  @@index([deviceTypeId, isActive])
 }
 
 model ChangeLog {
   id                String   @id @default(cuid())
   ticketId          String   @unique // CHG-YYYY-NNNN
   deviceTypeId      String
+  deviceId          String?
+  requestor         String?
   deviceName        String
   deviceIp          String?
   changeType        String   // ACL | ROUTING | NAT | INTERFACE | SECURITY_POLICY | VPN | OTHER
@@ -133,6 +153,7 @@ model ChangeLog {
 
   // Relations
   deviceType        DeviceType     @relation(fields: [deviceTypeId], references: [id])
+  device            Device?        @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   pic               User           @relation("ChangeLogPic", fields: [picId], references: [id])
   creator           User           @relation("ChangeLogCreator", fields: [createdById], references: [id])
   verifier          User?          @relation("ChangeLogVerifier", fields: [verifiedById], references: [id])

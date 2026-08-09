@@ -4,6 +4,7 @@ set -e
 echo "[secchangelog] Ensuring upload directories..."
 mkdir -p /app/public/uploads/screenshots
 mkdir -p /app/public/uploads/logos
+mkdir -p /app/public/uploads/favicons
 
 echo "[secchangelog] Applying database schema (prisma db push)..."
 cd /app

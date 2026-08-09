@@ -21,8 +21,10 @@ export async function GET() {
   if (!session?.user) return unauthorized();
 
   const items = await db.deviceType.findMany({
-    where: { isActive: true },
     orderBy: { name: "asc" },
+    include: {
+      _count: { select: { changeLogs: true, devices: true } },
+    },
   });
 
   return apiSuccess(items);

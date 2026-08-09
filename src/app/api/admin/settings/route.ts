@@ -24,6 +24,7 @@ export async function GET() {
     return apiSuccess({
       "system.name": all["system.name"],
       "system.logoPath": all["system.logoPath"],
+      "system.faviconPath": all["system.faviconPath"],
       "system.defaultTheme": all["system.defaultTheme"],
       "ldap.enabled": all["ldap.enabled"],
       "password.minLength": all["password.minLength"],

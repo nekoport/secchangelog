@@ -55,6 +55,7 @@ export class ExportService {
     if (filters.search) {
       where.OR = [
         { ticketId: { contains: filters.search } },
+        { requestor: { contains: filters.search } },
         { deviceName: { contains: filters.search } },
         { deviceIp: { contains: filters.search } },
         { descriptionBefore: { contains: filters.search } },
@@ -104,6 +105,7 @@ export class ExportService {
       "Nama Perangkat": log.deviceName,
       "IP Address": log.deviceIp || "",
       "Jenis Perubahan": log.changeType,
+      "Pemohon": log.requestor || "",
       "PIC": log.pic.name,
       "Pencatat": log.creator.name,
       "Permintaan": log.descriptionBefore,
@@ -120,8 +122,9 @@ export class ExportService {
     const ws1 = XLSX.utils.json_to_sheet(sheet1Data);
     ws1["!cols"] = [
       { wch: 14 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 14 },
-      { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 50 }, { wch: 50 },
-      { wch: 40 }, { wch: 40 }, { wch: 18 }, { wch: 20 }, { wch: 20 },
+      { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 50 },
+      { wch: 50 }, { wch: 40 }, { wch: 40 }, { wch: 18 }, { wch: 20 },
+      { wch: 20 },
     ];
 
     // Sheet 2: Summary
@@ -279,6 +282,7 @@ export class ExportService {
         ["Nama Perangkat", log.deviceName],
         ["IP Address", log.deviceIp || "-"],
         ["Jenis Perubahan", log.changeType],
+        ["Pemohon", log.requestor || "-"],
         ["PIC", log.pic.name],
         ["Pencatat", log.creator.name],
         ["Waktu Implementasi", log.implementedAt.toISOString().slice(0, 19).replace("T", " ")],

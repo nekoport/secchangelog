@@ -14,11 +14,13 @@ import type { ScreenshotType } from "@/lib/constants";
 const UPLOAD_BASE = process.env.UPLOAD_DIR || "/home/z/my-project/public/uploads";
 const SCREENSHOTS_DIR = path.join(UPLOAD_BASE, "screenshots");
 const LOGOS_DIR = path.join(UPLOAD_BASE, "logos");
+const FAVICONS_DIR = path.join(UPLOAD_BASE, "favicons");
 
 export class FileStorageService {
   static async ensureDirectories() {
     await fs.mkdir(SCREENSHOTS_DIR, { recursive: true });
     await fs.mkdir(LOGOS_DIR, { recursive: true });
+    await fs.mkdir(FAVICONS_DIR, { recursive: true });
   }
 
   static async saveScreenshot(
@@ -206,6 +208,74 @@ export class FileStorageService {
       return await fs.readFile(filePath);
     } catch {
       return null;
+    }
+  }
+
+  static async saveFavicon(
+    buffer: Buffer,
+    originalName: string,
+    declaredMimeType: string
+  ): Promise<string> {
+    await this.ensureDirectories();
+
+    // Favicon only allows SVG/PNG/WebP/ICO
+    const allowed = ["image/png", "image/webp", "image/svg+xml", "image/x-icon", "image/vnd.microsoft.icon"];
+    if (!allowed.includes(declaredMimeType)) {
+      throw new Error("Favicon harus PNG, WEBP, SVG, atau ICO");
+    }
+
+    // For SVG/ICO skip magic number check (text/binary based)
+    if (declaredMimeType === "image/svg+xml") {
+      const head = buffer.slice(0, 200).toString("utf-8").trim();
+      if (!head.startsWith("<") || !head.includes("svg")) {
+        throw new Error("File SVG tidak valid");
+      }
+    } else if (!declaredMimeType.startsWith("image/x-icon") && !declaredMimeType.startsWith("image/vnd")) {
+      const magicCheck = validateFileByMagicNumber(buffer, declaredMimeType);
+      if (!magicCheck.valid) {
+        throw new Error(magicCheck.error || "File tidak valid");
+      }
+    }
+
+    const sizeCheck = validateFileSize(buffer.length, true);
+    if (!sizeCheck.valid) {
+      throw new Error(sizeCheck.error || "File terlalu besar");
+    }
+
+    const ext =
+      declaredMimeType === "image/svg+xml" ? "svg" :
+      declaredMimeType.endsWith("x-icon") || declaredMimeType.endsWith("vnd.microsoft.icon") ? "ico" :
+      declaredMimeType === "image/png" ? "png" : "webp";
+    const filename = `system-favicon.${ext}`;
+    const filePath = safeJoinPath(FAVICONS_DIR, filename);
+
+    // Remove old favicon files
+    try {
+      const files = await fs.readdir(FAVICONS_DIR);
+      for (const f of files) {
+        if (f.startsWith("system-favicon") && f !== filename) {
+          await fs.unlink(safeJoinPath(FAVICONS_DIR, f)).catch(() => {});
+        }
+      }
+    } catch {
+      // ignore
+    }
+
+    await fs.writeFile(filePath, buffer);
+
+    return `/uploads/favicons/${filename}`;
+  }
+
+  static async clearFavicons(): Promise<void> {
+    try {
+      const files = await fs.readdir(FAVICONS_DIR);
+      for (const f of files) {
+        if (f.startsWith("system-favicon")) {
+          await fs.unlink(safeJoinPath(FAVICONS_DIR, f)).catch(() => {});
+        }
+      }
+    } catch {
+      // ignore
     }
   }
 }

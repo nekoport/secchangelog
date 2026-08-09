@@ -42,6 +42,16 @@ export async function PATCH(
 
   const updateData: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
+  if (parsed.data.username !== undefined) {
+    const newUsername = parsed.data.username.trim();
+    if (newUsername) {
+      const clash = await db.user.findFirst({
+        where: { username: newUsername, NOT: { id } },
+      });
+      if (clash) return conflict("Username sudah terdaftar", "USERNAME_EXISTS");
+      updateData.username = newUsername;
+    }
+  }
   if (parsed.data.role !== undefined) updateData.role = parsed.data.role;
   if (parsed.data.isActive !== undefined) updateData.isActive = parsed.data.isActive;
   if (parsed.data.ldapDn !== undefined) updateData.ldapDn = parsed.data.ldapDn || null;
@@ -55,6 +65,7 @@ export async function PATCH(
     select: {
       id: true,
       email: true,
+      username: true,
       name: true,
       role: true,
       ldapDn: true,

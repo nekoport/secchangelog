@@ -25,11 +25,13 @@ export const authOptions: NextAuthOptions = {
     CredentialsProvider({
       name: "credentials",
       credentials: {
-        email: { label: "Email", type: "email" },
+        username: { label: "Username / Email", type: "text" },
+        email: { label: "Email", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials, req) {
-        if (!credentials?.email || !credentials?.password) {
+        const identifierField = credentials?.username ?? credentials?.email;
+        if (!identifierField || !credentials?.password) {
           return null;
         }
 
@@ -47,11 +49,14 @@ export const authOptions: NextAuthOptions = {
           );
         }
 
-        const email = credentials.email.toLowerCase().trim();
+        const identifier = identifierField.trim();
+        const normalizedEmail = identifier.toLowerCase();
 
-        // Find user
-        const user = await db.user.findUnique({
-          where: { email },
+        // Find user by username OR email (username takes precedence for existing accounts)
+        const user = await db.user.findFirst({
+          where: {
+            OR: [{ username: identifier }, { email: normalizedEmail }],
+          },
         });
 
         if (!user) {
@@ -59,8 +64,8 @@ export const authOptions: NextAuthOptions = {
             userId: "unknown",
             action: "LOGIN_FAILED",
             entityType: "User",
-            entityId: email,
-            metadata: { reason: "USER_NOT_FOUND", email },
+            entityId: identifier,
+            metadata: { reason: "USER_NOT_FOUND", identifier },
             ipAddress: ip,
             userAgent,
           });
@@ -115,7 +120,7 @@ export const authOptions: NextAuthOptions = {
           if (ldapEnabled) {
             try {
               const ldapResult = await authenticateLdap(
-                user.ldapDn || email,
+                user.ldapDn || user.email,
                 credentials.password
               );
               if (ldapResult.success) {

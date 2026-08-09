@@ -8,6 +8,7 @@ import {
 
 export const createChangeLogSchema = z.object({
   deviceTypeId: z.string().min(1, "Jenis perangkat wajib dipilih"),
+  deviceId: z.string().optional(),
   deviceName: z
     .string()
     .min(1, "Nama perangkat wajib diisi")
@@ -15,6 +16,11 @@ export const createChangeLogSchema = z.object({
   deviceIp: z
     .string()
     .max(45)
+    .optional()
+    .or(z.literal("")),
+  requestor: z
+    .string()
+    .max(100, "Pemohon maksimal 100 karakter")
     .optional()
     .or(z.literal("")),
   changeType: z.enum(CHANGE_TYPES, {

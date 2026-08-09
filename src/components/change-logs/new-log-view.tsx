@@ -52,8 +52,10 @@ export function NewLogView({
   const [uploading, setUploading] = useState(false);
 
   const [deviceTypeId, setDeviceTypeId] = useState("");
+  const [deviceId, setDeviceId] = useState("");
   const [deviceName, setDeviceName] = useState("");
   const [deviceIp, setDeviceIp] = useState("");
+  const [requestor, setRequestor] = useState("");
   const [changeType, setChangeType] = useState("");
   const [descriptionBefore, setDescriptionBefore] = useState("");
   const [descriptionAfter, setDescriptionAfter] = useState("");
@@ -70,9 +72,44 @@ export function NewLogView({
       const res = await fetch("/api/device-types");
       if (!res.ok) return [];
       const json = await res.json();
-      return json.data as Array<{ id: string; name: string }>;
+      return json.data as Array<{
+        id: string;
+        name: string;
+      }>;
     },
   });
+
+  const { data: devices } = useQuery({
+    queryKey: ["devices", deviceTypeId],
+    queryFn: async () => {
+      if (!deviceTypeId) return [];
+      const res = await fetch(
+        `/api/devices?deviceTypeId=${encodeURIComponent(deviceTypeId)}`
+      );
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.data as Array<{
+        id: string;
+        name: string;
+        ipAddress: string | null;
+      }>;
+    },
+    enabled: !!deviceTypeId,
+  });
+
+  function handleDeviceTypeChange(id: string) {
+    setDeviceTypeId(id);
+    setDeviceId("");
+    setDeviceName("");
+    setDeviceIp("");
+  }
+
+  function handleDeviceChange(id: string) {
+    const device = devices?.find((d) => d.id === id);
+    setDeviceId(id);
+    setDeviceName(device?.name || "");
+    setDeviceIp(device?.ipAddress || "");
+  }
 
   async function handleUploadFile(
     file: File,
@@ -132,8 +169,10 @@ export function NewLogView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           deviceTypeId,
+          deviceId: deviceId || undefined,
           deviceName,
           deviceIp: deviceIp || undefined,
+          requestor: requestor || undefined,
           changeType,
           descriptionBefore,
           descriptionAfter,
@@ -186,7 +225,10 @@ export function NewLogView({
               <Label htmlFor="deviceType">
                 Jenis Perangkat <span className="text-destructive">*</span>
               </Label>
-              <Select value={deviceTypeId} onValueChange={setDeviceTypeId}>
+              <Select
+                value={deviceTypeId}
+                onValueChange={handleDeviceTypeChange}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih jenis perangkat" />
                 </SelectTrigger>
@@ -200,17 +242,48 @@ export function NewLogView({
               </Select>
             </div>
             <div className="space-y-2">
+              <Label htmlFor="requestor">Pemohon</Label>
+              <Input
+                id="requestor"
+                value={requestor}
+                onChange={(e) => setRequestor(e.target.value)}
+                placeholder="Nama pemohon perubahan"
+              />
+            </div>
+            <div className="space-y-2">
               <Label htmlFor="deviceName">
                 Nama Perangkat (hostname){" "}
                 <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="deviceName"
-                value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
-                placeholder="Misal: SW-CORE-01"
-                required
-              />
+              <Select
+                value={deviceId}
+                onValueChange={handleDeviceChange}
+                disabled={!deviceTypeId}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      deviceTypeId
+                        ? devices?.length
+                          ? "Pilih nama perangkat"
+                          : "Tidak ada perangkat untuk jenis ini"
+                        : "Pilih jenis perangkat dahulu"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {devices?.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                      {d.ipAddress ? ` (${d.ipAddress})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                Daftar menyesuaikan jenis perangkat. Tambah perangkat baru di
+                Settings &gt; Jenis Perangkat.
+              </p>
             </div>
             <div className="space-y-2">
               <Label htmlFor="deviceIp">IP Address</Label>
@@ -218,7 +291,8 @@ export function NewLogView({
                 id="deviceIp"
                 value={deviceIp}
                 onChange={(e) => setDeviceIp(e.target.value)}
-                placeholder="10.0.0.1"
+                placeholder="Otomatis terisi dari perangkat"
+                readOnly={!!deviceId}
               />
             </div>
             <div className="space-y-2">

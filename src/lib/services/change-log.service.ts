@@ -30,9 +30,24 @@ export class ChangeLogService {
     const ticketId = await this.generateTicketId();
     const implementedAt = new Date(input.implementedAt);
 
+    // Resolve device (hostname + IP) if deviceId provided
+    let deviceTypeId = input.deviceTypeId;
+    let deviceId: string | null = input.deviceId || null;
+    let deviceName = input.deviceName;
+    let deviceIp = input.deviceIp || null;
+    if (deviceId) {
+      const device = await db.device.findUnique({ where: { id: deviceId } });
+      if (!device) {
+        throw new Error("DEVICE_NOT_FOUND");
+      }
+      deviceTypeId = device.deviceTypeId;
+      deviceName = device.name;
+      deviceIp = device.ipAddress || null;
+    }
+
     // Verify device type exists
     const deviceType = await db.deviceType.findUnique({
-      where: { id: input.deviceTypeId },
+      where: { id: deviceTypeId },
     });
     if (!deviceType) {
       throw new Error("DEVICE_TYPE_NOT_FOUND");
@@ -43,9 +58,11 @@ export class ChangeLogService {
       const log = await tx.changeLog.create({
         data: {
           ticketId,
-          deviceTypeId: input.deviceTypeId,
-          deviceName: input.deviceName,
-          deviceIp: input.deviceIp || null,
+          deviceTypeId,
+          deviceId,
+          requestor: input.requestor || null,
+          deviceName,
+          deviceIp,
           changeType: input.changeType,
           descriptionBefore: input.descriptionBefore,
           descriptionAfter: input.descriptionAfter,
@@ -132,6 +149,7 @@ export class ChangeLogService {
     if (search) {
       where.OR = [
         { ticketId: { contains: search } },
+        { requestor: { contains: search } },
         { deviceName: { contains: search } },
         { deviceIp: { contains: search } },
         { descriptionBefore: { contains: search } },
@@ -260,9 +278,27 @@ export class ChangeLogService {
     }
 
     const updateData: Record<string, unknown> = {};
-    if (input.deviceTypeId !== undefined) updateData.deviceTypeId = input.deviceTypeId;
-    if (input.deviceName !== undefined) updateData.deviceName = input.deviceName;
-    if (input.deviceIp !== undefined) updateData.deviceIp = input.deviceIp || null;
+
+    // If deviceId provided, resolve hostname/IP/type from the device record
+    if (input.deviceId !== undefined) {
+      if (input.deviceId) {
+        const device = await db.device.findUnique({ where: { id: input.deviceId } });
+        if (!device) {
+          throw new Error("DEVICE_NOT_FOUND");
+        }
+        updateData.deviceId = device.id;
+        updateData.deviceTypeId = device.deviceTypeId;
+        updateData.deviceName = device.name;
+        updateData.deviceIp = device.ipAddress || null;
+      } else {
+        updateData.deviceId = null;
+      }
+    }
+
+    if (input.deviceTypeId !== undefined && input.deviceId === undefined) updateData.deviceTypeId = input.deviceTypeId;
+    if (input.requestor !== undefined) updateData.requestor = input.requestor || null;
+    if (input.deviceName !== undefined && input.deviceId === undefined) updateData.deviceName = input.deviceName;
+    if (input.deviceIp !== undefined && input.deviceId === undefined) updateData.deviceIp = input.deviceIp || null;
     if (input.changeType !== undefined) updateData.changeType = input.changeType;
     if (input.descriptionBefore !== undefined) updateData.descriptionBefore = input.descriptionBefore;
     if (input.descriptionAfter !== undefined) updateData.descriptionAfter = input.descriptionAfter;

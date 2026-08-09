@@ -32,6 +32,7 @@ export async function GET(req: Request) {
   if (search) {
     where.OR = [
       { email: { contains: search } },
+      { username: { contains: search } },
       { name: { contains: search } },
     ];
   }
@@ -43,6 +44,7 @@ export async function GET(req: Request) {
       select: {
         id: true,
         email: true,
+        username: true,
         name: true,
         role: true,
         ldapDn: true,
@@ -93,12 +95,29 @@ export async function POST(req: Request) {
     return conflict("Email sudah terdaftar", "EMAIL_EXISTS");
   }
 
+  // Determine username: explicit value or derive from email
+  let username = parsed.data.username?.trim();
+  if (!username) {
+    username = parsed.data.email
+      .split("@")[0]
+      .replace(/[^a-zA-Z0-9._-]/g, "")
+      .toLowerCase()
+      .slice(0, 50);
+  }
+  const usernameClash = await db.user.findFirst({
+    where: { username },
+  });
+  if (usernameClash) {
+    return conflict("Username sudah terdaftar", "USERNAME_EXISTS");
+  }
+
   const passwordHash = await hashPassword(parsed.data.password);
 
   try {
     const user = await db.user.create({
       data: {
         email: parsed.data.email.toLowerCase(),
+        username,
         name: parsed.data.name,
         passwordHash,
         role: parsed.data.role,
@@ -107,6 +126,7 @@ export async function POST(req: Request) {
       select: {
         id: true,
         email: true,
+        username: true,
         name: true,
         role: true,
         ldapDn: true,
@@ -120,7 +140,7 @@ export async function POST(req: Request) {
       action: "CREATE_USER",
       entityType: "User",
       entityId: user.id,
-      metadata: { email: user.email, name: user.name, role: user.role },
+      metadata: { email: user.email, username: user.username, name: user.name, role: user.role },
       ipAddress: getClientIp(req),
       userAgent: req.headers.get("user-agent"),
     });

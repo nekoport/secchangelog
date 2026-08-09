@@ -55,8 +55,10 @@ export function EditLogView({
   const [forbidden, setForbidden] = useState(false);
 
   const [deviceTypeId, setDeviceTypeId] = useState("");
+  const [deviceId, setDeviceId] = useState("");
   const [deviceName, setDeviceName] = useState("");
   const [deviceIp, setDeviceIp] = useState("");
+  const [requestor, setRequestor] = useState("");
   const [changeType, setChangeType] = useState("");
   const [descriptionBefore, setDescriptionBefore] = useState("");
   const [descriptionAfter, setDescriptionAfter] = useState("");
@@ -71,9 +73,44 @@ export function EditLogView({
       const res = await fetch("/api/device-types");
       if (!res.ok) return [];
       const json = await res.json();
-      return json.data as Array<{ id: string; name: string }>;
+      return json.data as Array<{
+        id: string;
+        name: string;
+      }>;
     },
   });
+
+  const { data: devices } = useQuery({
+    queryKey: ["devices", deviceTypeId],
+    queryFn: async () => {
+      if (!deviceTypeId) return [];
+      const res = await fetch(
+        `/api/devices?deviceTypeId=${encodeURIComponent(deviceTypeId)}`
+      );
+      if (!res.ok) return [];
+      const json = await res.json();
+      return json.data as Array<{
+        id: string;
+        name: string;
+        ipAddress: string | null;
+      }>;
+    },
+    enabled: !!deviceTypeId,
+  });
+
+  function handleDeviceTypeChange(id: string) {
+    setDeviceTypeId(id);
+    setDeviceId("");
+    setDeviceName("");
+    setDeviceIp("");
+  }
+
+  function handleDeviceChange(id: string) {
+    const device = devices?.find((d) => d.id === id);
+    setDeviceId(id);
+    setDeviceName(device?.name || "");
+    setDeviceIp(device?.ipAddress || "");
+  }
 
   // Load existing data
   useEffect(() => {
@@ -87,8 +124,10 @@ export function EditLogView({
         const json = await res.json();
         const log = json.data;
         setDeviceTypeId(log.deviceTypeId || log.deviceType?.id);
+        setDeviceId(log.deviceId || "");
         setDeviceName(log.deviceName);
         setDeviceIp(log.deviceIp || "");
+        setRequestor(log.requestor || "");
         setChangeType(log.changeType);
         setDescriptionBefore(log.descriptionBefore);
         setDescriptionAfter(log.descriptionAfter);
@@ -169,8 +208,10 @@ export function EditLogView({
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           deviceTypeId,
+          deviceId: deviceId || undefined,
           deviceName,
           deviceIp: deviceIp || undefined,
+          requestor: requestor || undefined,
           changeType,
           descriptionBefore,
           descriptionAfter,
@@ -261,7 +302,10 @@ export function EditLogView({
               <Label>
                 Jenis Perangkat <span className="text-destructive">*</span>
               </Label>
-              <Select value={deviceTypeId} onValueChange={setDeviceTypeId}>
+              <Select
+                value={deviceTypeId}
+                onValueChange={handleDeviceTypeChange}
+              >
                 <SelectTrigger>
                   <SelectValue placeholder="Pilih jenis perangkat" />
                 </SelectTrigger>
@@ -275,21 +319,55 @@ export function EditLogView({
               </Select>
             </div>
             <div className="space-y-2">
+              <Label>Pemohon</Label>
+              <Input
+                value={requestor}
+                onChange={(e) => setRequestor(e.target.value)}
+                placeholder="Nama pemohon perubahan"
+              />
+            </div>
+            <div className="space-y-2">
               <Label>
                 Nama Perangkat (hostname){" "}
                 <span className="text-destructive">*</span>
               </Label>
-              <Input
-                value={deviceName}
-                onChange={(e) => setDeviceName(e.target.value)}
-                required
-              />
+              <Select
+                value={deviceId}
+                onValueChange={handleDeviceChange}
+                disabled={!deviceTypeId}
+              >
+                <SelectTrigger>
+                  <SelectValue
+                    placeholder={
+                      deviceTypeId
+                        ? devices?.length
+                          ? "Pilih nama perangkat"
+                          : "Tidak ada perangkat untuk jenis ini"
+                        : "Pilih jenis perangkat dahulu"
+                    }
+                  />
+                </SelectTrigger>
+                <SelectContent>
+                  {devices?.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>
+                      {d.name}
+                      {d.ipAddress ? ` (${d.ipAddress})` : ""}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <p className="text-[10px] text-muted-foreground">
+                Daftar menyesuaikan jenis perangkat. Tambah perangkat baru di
+                Settings &gt; Jenis Perangkat.
+              </p>
             </div>
             <div className="space-y-2">
               <Label>IP Address</Label>
               <Input
                 value={deviceIp}
                 onChange={(e) => setDeviceIp(e.target.value)}
+                placeholder="Otomatis terisi dari perangkat"
+                readOnly={!!deviceId}
               />
             </div>
             <div className="space-y-2">

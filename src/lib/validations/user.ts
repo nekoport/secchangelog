@@ -13,14 +13,26 @@ const passwordSchema = z
   );
 
 export const loginSchema = z.object({
-  email: z.string().email("Email tidak valid").max(255),
+  username: z.string().min(1, "Username/email wajib diisi").max(255),
   password: z.string().min(1, "Password wajib diisi").max(128),
 });
 
 export type LoginInput = z.infer<typeof loginSchema>;
 
+const usernameSchema = z
+  .string()
+  .min(3, "Username minimal 3 karakter")
+  .max(50, "Username maksimal 50 karakter")
+  .regex(
+    /^[a-zA-Z0-9._-]+$/,
+    "Username hanya boleh huruf, angka, titik, underscore, atau dash"
+  )
+  .optional()
+  .or(z.literal(""));
+
 export const createUserSchema = z.object({
   email: z.string().email("Email tidak valid").max(255),
+  username: usernameSchema.optional(),
   name: z.string().min(1, "Nama wajib diisi").max(100),
   password: passwordSchema,
   role: z.enum(["ENGINEER", "SUPERVISOR", "ADMIN", "AUDITOR"]),
@@ -31,6 +43,7 @@ export type CreateUserInput = z.infer<typeof createUserSchema>;
 
 export const updateUserSchema = z.object({
   name: z.string().min(1).max(100).optional(),
+  username: usernameSchema.optional(),
   role: z.enum(["ENGINEER", "SUPERVISOR", "ADMIN", "AUDITOR"]).optional(),
   isActive: z.boolean().optional(),
   ldapDn: z.string().max(255).optional().or(z.literal("")),

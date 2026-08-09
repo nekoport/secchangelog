@@ -93,7 +93,6 @@ export class DeleteRequestService {
               id: true,
               ticketId: true,
               deviceName: true,
-              riskLevel: true,
               isDeleted: true,
             },
           },

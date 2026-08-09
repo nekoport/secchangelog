@@ -31,6 +31,18 @@ export const updateDeviceTypeSchema = createDeviceTypeSchema.partial();
 
 export type UpdateDeviceTypeInput = z.infer<typeof updateDeviceTypeSchema>;
 
+export const createDeviceSchema = z.object({
+  deviceTypeId: z.string().min(1, "Jenis perangkat wajib dipilih"),
+  name: z.string().min(1, "Hostname wajib diisi").max(100),
+  ipAddress: z.string().max(45).optional().or(z.literal("")),
+});
+
+export type CreateDeviceInput = z.infer<typeof createDeviceSchema>;
+
+export const updateDeviceSchema = createDeviceSchema.partial();
+
+export type UpdateDeviceInput = z.infer<typeof updateDeviceSchema>;
+
 export const createDeleteRequestSchema = z.object({
   changeLogId: z.string().min(1, "Change log ID wajib diisi"),
   reason: z
