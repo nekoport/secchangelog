@@ -1,6 +1,5 @@
 "use client";
 
-import Image from "next/image";
 import { ShieldCheck } from "lucide-react";
 import { useSystemSettings } from "@/hooks/use-system-settings";
 
@@ -16,13 +15,12 @@ export function Logo({
 
   if (logoPath) {
     return (
-      <Image
+      <img
         src={logoPath}
         alt="Logo"
         width={size}
         height={size}
         className={`object-contain ${className || ""}`}
-        priority
       />
     );
   }

@@ -55,8 +55,10 @@ export async function GET(req: Request) {
       "User": item.user?.name || "Unknown",
       "Email": item.user?.email || "",
       "Role": item.user?.role || "",
-      "Action": item.action,
+      "Action": item.actionText || item.action,
+      "Action Code": item.action,
       "Entity Type": item.entityType,
+      "Entity": item.entityLabel || item.entityId,
       "Entity ID": item.entityId,
       "IP Address": item.ipAddress || "",
       "User Agent": item.userAgent || "",
@@ -65,7 +67,7 @@ export async function GET(req: Request) {
     const ws = XLSX.utils.json_to_sheet(sheetData);
     ws["!cols"] = [
       { wch: 20 }, { wch: 20 }, { wch: 25 }, { wch: 12 },
-      { wch: 25 }, { wch: 15 }, { wch: 20 }, { wch: 15 }, { wch: 30 },
+      { wch: 30 }, { wch: 24 }, { wch: 15 }, { wch: 24 }, { wch: 20 }, { wch: 15 }, { wch: 30 },
     ];
 
     const wb = XLSX.utils.book_new();

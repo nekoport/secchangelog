@@ -16,6 +16,7 @@ export const updateSettingsSchema = z.object({
   "password.requireSymbol": z.enum(["true", "false"]).optional(),
   "upload.maxFileSizeMb": z.string().optional(),
   "session.timeoutHours": z.string().optional(),
+  "ntp.server": z.string().max(255).optional().or(z.literal("")),
 });
 
 export type UpdateSettingsInput = z.infer<typeof updateSettingsSchema>;

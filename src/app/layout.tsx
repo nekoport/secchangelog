@@ -6,11 +6,14 @@ import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
 import { AppIdentity } from "@/components/shared/app-identity";
+import { SystemSettingService } from "@/lib/services/system-setting.service";
 
 const inter = Inter({
   variable: "--font-geist-sans",
   subsets: ["latin"],
 });
+
+export const dynamic = "force-dynamic";
 
 export const metadata: Metadata = {
   title: "SecChangeLog - Sistem Pencatatan Perubahan Konfigurasi",
@@ -27,11 +30,13 @@ export const metadata: Metadata = {
   robots: { index: false, follow: false }, // Internal app, no SEO
 };
 
-export default function RootLayout({
+export default async function RootLayout({
   children,
 }: Readonly<{
   children: React.ReactNode;
 }>) {
+  const defaultTheme = await SystemSettingService.getDefaultTheme();
+
   return (
     <html lang="id" suppressHydrationWarning>
       <body
@@ -39,7 +44,7 @@ export default function RootLayout({
       >
         <ThemeProvider
           attribute="class"
-          defaultTheme="dark"
+          defaultTheme={defaultTheme}
           enableSystem={false}
           disableTransitionOnChange
         >

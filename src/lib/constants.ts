@@ -80,6 +80,8 @@ export const AUDIT_ACTIONS = {
   EXPORT_EXCEL: "EXPORT_EXCEL",
   EXPORT_PDF: "EXPORT_PDF",
   CHANGE_THEME: "CHANGE_THEME",
+  NTP_SYNC: "NTP_SYNC",
+  UPDATE_NTP_SETTING: "UPDATE_NTP_SETTING",
 } as const;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
@@ -144,4 +146,5 @@ export const DEFAULT_SETTINGS = {
   "password.requireSymbol": "true",
   "upload.maxFileSizeMb": "10",
   "session.timeoutHours": "8",
+  "ntp.server": "id.pool.ntp.org",
 } as const;

@@ -1,7 +1,9 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
+import { useTheme } from "next-themes";
+import { useQueryClient } from "@tanstack/react-query";
 import {
   Card,
   CardContent,
@@ -15,9 +17,10 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Separator } from "@/components/ui/separator";
-import { Loader2, KeyRound, User as UserIcon, Shield, Mail, Calendar, LogIn } from "lucide-react";
+import { Loader2, KeyRound, Shield, Mail, LogIn, Moon, Sun } from "lucide-react";
 import { toast } from "sonner";
 import type { ViewType } from "@/components/layout/app-shell";
+import { useSystemSettings } from "@/hooks/use-system-settings";
 
 interface ProfileData {
   id: string;
@@ -37,15 +40,20 @@ export function ProfileView({
   onNavigate: (v: ViewType) => void;
 }) {
   const { data: session, update: updateSession } = useSession();
+  const { theme, setTheme } = useTheme();
+  const { settings } = useSystemSettings();
+  const qc = useQueryClient();
   const [currentPassword, setCurrentPassword] = useState("");
   const [newPassword, setNewPassword] = useState("");
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
+  const [syncingTheme, setSyncingTheme] = useState<string | null>(null);
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
 
-  // Load profile data via API
-  useState(() => {
+  // Load profile data (login info) once
+  useEffect(() => {
+    let cancelled = false;
     async function loadProfile() {
       try {
         // Use audit trail to find recent login
@@ -54,6 +62,7 @@ export function ProfileView({
         const json = await res.json();
         if (json.data && json.data.length > 0) {
           const lastLogin = json.data[0];
+          if (cancelled) return;
           setProfile({
             id: session?.user?.id || "",
             email: session?.user?.email || "",
@@ -71,7 +80,31 @@ export function ProfileView({
       }
     }
     if (session) loadProfile();
-  });
+    return () => {
+      cancelled = true;
+    };
+  }, [session]);
+
+  async function handleApplyTheme(next: "light" | "dark") {
+    setTheme(next);
+    setSyncingTheme(next);
+    try {
+      const res = await fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ "system.defaultTheme": next }),
+      });
+      if (!res.ok) throw new Error("Gagal");
+      toast.success(
+        `Tema ${next === "dark" ? "gelap" : "terang"} disimpan sebagai default`
+      );
+      qc.invalidateQueries({ queryKey: ["system-settings"] });
+    } catch {
+      toast.error("Tema diubah, tapi gagal menyimpan ke setting");
+    } finally {
+      setSyncingTheme(null);
+    }
+  }
 
   async function handleChangePassword(e: React.FormEvent) {
     e.preventDefault();
@@ -302,6 +335,48 @@ export function ProfileView({
           </CardContent>
         </Card>
       </div>
+
+      {/* Theme preference — synced to the system default theme */}
+      <Card>
+        <CardHeader>
+          <CardTitle className="text-base flex items-center gap-2">
+            <Moon className="h-4 w-4" />
+            Tema Tampilan
+          </CardTitle>
+          <CardDescription>
+            Tema default sistem:{" "}
+            <Badge variant="outline" className="text-[10px] capitalize">
+              {settings?.["system.defaultTheme"] === "light"
+                ? "Terang"
+                : "Gelap"}
+            </Badge>{" "}
+            — pilihan Anda disimpan sebagai default sistem untuk semua user.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center gap-2">
+            <Button
+              variant={theme === "light" ? "default" : "outline"}
+              onClick={() => handleApplyTheme("light")}
+              disabled={syncingTheme !== null}
+            >
+              <Sun className="h-4 w-4 mr-2" />
+              Terang
+            </Button>
+            <Button
+              variant={theme === "dark" ? "default" : "outline"}
+              onClick={() => handleApplyTheme("dark")}
+              disabled={syncingTheme !== null}
+            >
+              <Moon className="h-4 w-4 mr-2" />
+              Gelap
+            </Button>
+            {syncingTheme && (
+              <Loader2 className="h-4 w-4 animate-spin text-muted-foreground" />
+            )}
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }

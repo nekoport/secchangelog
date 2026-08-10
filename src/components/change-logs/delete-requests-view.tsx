@@ -61,6 +61,7 @@ export function DeleteRequestsView() {
   const [filter, setFilter] = useState("PENDING");
   const [actionTarget, setActionTarget] = useState<{
     id: string;
+    ticketId: string;
     action: "approve" | "reject";
   } | null>(null);
   const [note, setNote] = useState("");
@@ -238,7 +239,7 @@ export function DeleteRequestsView() {
                                 size="icon"
                                 className="h-8 w-8 text-risk-low"
                                 onClick={() => {
-                                  setActionTarget({ id: dr.id, action: "approve" });
+                                  setActionTarget({ id: dr.id, ticketId: dr.changeLog.ticketId, action: "approve" });
                                   setNote("");
                                 }}
                                 title="Approve"
@@ -250,7 +251,7 @@ export function DeleteRequestsView() {
                                 size="icon"
                                 className="h-8 w-8 text-destructive"
                                 onClick={() => {
-                                  setActionTarget({ id: dr.id, action: "reject" });
+                                  setActionTarget({ id: dr.id, ticketId: dr.changeLog.ticketId, action: "reject" });
                                   setNote("");
                                 }}
                                 title="Reject"
@@ -323,6 +324,14 @@ export function DeleteRequestsView() {
                 : "Reject Pengajuan Hapus"}
             </DialogTitle>
           </DialogHeader>
+          {actionTarget?.ticketId && (
+            <p className="text-sm text-muted-foreground">
+              Ticket:{" "}
+              <span className="font-mono font-semibold">
+                {actionTarget.ticketId}
+              </span>
+            </p>
+          )}
           <div className="space-y-2">
             <Label htmlFor="note" className="text-sm">
               Catatan (opsional)

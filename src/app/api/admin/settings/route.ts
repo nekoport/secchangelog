@@ -49,7 +49,6 @@ export async function GET() {
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized();
-  if (session.user.role !== "ADMIN") return forbidden();
 
   let body: unknown;
   try {
@@ -65,6 +64,14 @@ export async function PATCH(req: Request) {
   if (!parsed.success) return validationError(parsed.error);
 
   const data = parsed.data;
+
+  // Non-admin users may only change the system default theme
+  if (session.user.role !== "ADMIN") {
+    const keys = Object.keys(data);
+    const onlyTheme =
+      keys.length === 1 && keys[0] === "system.defaultTheme";
+    if (!onlyTheme) return forbidden();
+  }
 
   // Skip bindPassword if it's the mask value
   if (data["ldap.bindPassword"] === "********") {

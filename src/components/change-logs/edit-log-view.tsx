@@ -197,8 +197,8 @@ export function EditLogView({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!deviceTypeId || !deviceName || !changeType) {
-      toast.error("Lengkapi semua field wajib");
+    if (!deviceTypeId || !deviceName || !changeType || !requestor.trim()) {
+      toast.error("Lengkapi semua field wajib (termasuk Pemohon)");
       return;
     }
     setSubmitting(true);
@@ -317,7 +317,9 @@ export function EditLogView({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label>Pemohon</Label>
+              <Label>
+                Pemohon <span className="text-destructive">*</span>
+              </Label>
               <Input
                 value={requestor}
                 onChange={(e) => setRequestor(e.target.value)}

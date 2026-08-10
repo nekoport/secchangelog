@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -47,6 +47,10 @@ import {
   Image as ImageIcon,
   Server,
   Pencil,
+  Clock,
+  RefreshCw,
+  CheckCircle2,
+  AlertTriangle,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSystemSettings } from "@/hooks/use-system-settings";
@@ -69,15 +73,22 @@ interface Device {
   _count?: { changeLogs: number };
 }
 
+function formatOffset(ms: number): string {
+  if (!isFinite(ms)) return "-";
+  const s = ms / 1000;
+  return `${s >= 0 ? "+" : ""}${s.toFixed(2)}s`;
+}
+
 export function SettingsView() {
   const qc = useQueryClient();
   const { settings, isLoading: settingsLoading } = useSystemSettings();
-  const [tab, setTab] = useState<"general" | "device-types" | "ldap" | "password">(
-    "general"
-  );
+  const [tab, setTab] = useState<
+    "general" | "device-types" | "ldap" | "password" | "ntp"
+  >("general");
 
   // General settings
   const [systemName, setSystemName] = useState("");
+  const [defaultTheme, setDefaultTheme] = useState<"light" | "dark">("dark");
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
@@ -99,6 +110,25 @@ export function SettingsView() {
   const [requireSymbol, setRequireSymbol] = useState(true);
   const [savingPassword, setSavingPassword] = useState(false);
 
+  // NTP
+  const [ntpServer, setNtpServer] = useState("");
+  const [ntpStatus, setNtpStatus] = useState<{
+    server: string;
+    capability: { canSetTime: boolean; hint?: string };
+    check: {
+      success: boolean;
+      server: string;
+      offsetMs: number;
+      roundTripMs: number;
+      serverTimeIso: string;
+      localTimeIso: string;
+      error?: string;
+    };
+  } | null>(null);
+  const [ntpLoading, setNtpLoading] = useState(false);
+  const [ntpSyncing, setNtpSyncing] = useState(false);
+  const [savingNtp, setSavingNtp] = useState(false);
+
   // Device types (general categories)
   const [showCreateDevice, setShowCreateDevice] = useState(false);
   const [newDeviceName, setNewDeviceName] = useState("");
@@ -114,9 +144,15 @@ export function SettingsView() {
   const [deviceFormIp, setDeviceFormIp] = useState("");
   const [savingDevice, setSavingDevice] = useState(false);
 
+  const hydrationDone = useRef(false);
+
   useEffect(() => {
-    if (settings) {
+    if (!settings || hydrationDone.current) return;
+    hydrationDone.current = true;
+    // Hydrate form state once from the latest loaded settings.
+    queueMicrotask(() => {
       setSystemName(settings["system.name"] || "SecChangeLog");
+      setDefaultTheme(settings["system.defaultTheme"] === "light" ? "light" : "dark");
       setLdapEnabled(settings["ldap.enabled"] === "true");
       setLdapUrl(settings["ldap.url"] || "");
       setLdapBindDn(settings["ldap.bindDn"] || "");
@@ -127,7 +163,8 @@ export function SettingsView() {
       setRequireLowercase(settings["password.requireLowercase"] === "true");
       setRequireNumber(settings["password.requireNumber"] === "true");
       setRequireSymbol(settings["password.requireSymbol"] === "true");
-    }
+      setNtpServer(settings["ntp.server"] || "id.pool.ntp.org");
+    });
   }, [settings]);
 
   const { data: deviceTypesWithCount, isLoading: dtLoading, refetch: refetchDt } = useQuery({
@@ -164,6 +201,7 @@ export function SettingsView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           "system.name": systemName,
+          "system.defaultTheme": defaultTheme,
         }),
       });
       if (!res.ok) throw new Error("Gagal");
@@ -304,6 +342,80 @@ export function SettingsView() {
     }
   }
 
+  async function loadNtpStatus() {
+    setNtpLoading(true);
+    try {
+      const res = await fetch("/api/admin/ntp");
+      if (!res.ok) throw new Error("Gagal");
+      const json = await res.json();
+      setNtpStatus(json.data);
+    } catch {
+      toast.error("Gagal mengambil status NTP");
+    } finally {
+      setNtpLoading(false);
+    }
+  }
+
+  useEffect(() => {
+    if (tab === "ntp" && !ntpStatus) {
+      queueMicrotask(() => loadNtpStatus());
+    }
+  }, [tab]);
+
+  async function handleSaveNtp() {
+    if (!ntpServer.trim()) {
+      toast.error("Server NTP wajib diisi");
+      return;
+    }
+    setSavingNtp(true);
+    try {
+      const res = await fetch("/api/admin/ntp", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ server: ntpServer.trim() }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || "Gagal");
+      }
+      toast.success("Server NTP disimpan");
+      qc.invalidateQueries({ queryKey: ["system-settings"] });
+      await loadNtpStatus();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setSavingNtp(false);
+    }
+  }
+
+  async function handleSyncNtp() {
+    setNtpSyncing(true);
+    try {
+      const res = await fetch("/api/admin/ntp/sync", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ server: ntpServer.trim() || undefined }),
+      });
+      if (!res.ok) throw new Error("Gagal");
+      const json = await res.json();
+      const result = json.data?.result;
+      if (result) {
+        setNtpStatus((prev) => (prev ? { ...prev, check: result } : prev));
+      }
+      if (result?.applied) {
+        toast.success("Waktu sistem berhasil disinkronkan");
+      } else if (!result?.success) {
+        toast.error(`Sinkronisasi gagal: ${result?.error || "NTP tidak terjangkau"}`);
+      } else {
+        toast.error("Server terjangkau tapi waktu tidak dapat diterapkan");
+      }
+    } catch {
+      toast.error("Gagal sinkronisasi NTP");
+    } finally {
+      setNtpSyncing(false);
+    }
+  }
+
   async function handleCreateDeviceType() {
     if (!newDeviceName.trim()) {
       toast.error("Nama wajib diisi");
@@ -429,6 +541,7 @@ export function SettingsView() {
     { id: "device-types", label: "Jenis Perangkat", icon: Server },
     { id: "ldap", label: "LDAP", icon: Shield },
     { id: "password", label: "Password Policy", icon: Shield },
+    { id: "ntp", label: "NTP", icon: Clock },
   ] as const;
 
   return (
@@ -480,6 +593,27 @@ export function SettingsView() {
                   onChange={(e) => setSystemName(e.target.value)}
                   placeholder="SecChangeLog"
                 />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="defaultTheme">Tema Default</Label>
+                <Select
+                  value={defaultTheme}
+                  onValueChange={(v) =>
+                    setDefaultTheme(v === "light" ? "light" : "dark")
+                  }
+                >
+                  <SelectTrigger id="defaultTheme" className="w-full">
+                    <SelectValue placeholder="Pilih tema" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="dark">Gelap (dark)</SelectItem>
+                    <SelectItem value="light">Terang (light)</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-[10px] text-muted-foreground">
+                  Tema default untuk seluruh user saat pertama kali membuka
+                  aplikasi.
+                </p>
               </div>
               <Button onClick={handleSaveGeneral} disabled={savingGeneral}>
                 {savingGeneral ? (
@@ -976,6 +1110,144 @@ export function SettingsView() {
             </Button>
           </CardContent>
         </Card>
+      )}
+
+      {/* NTP Tab */}
+      {tab === "ntp" && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base flex items-center gap-2">
+                <Clock className="h-4 w-4" />
+                Sinkronisasi Waktu
+              </CardTitle>
+              <CardDescription>
+                Periksa & sinkronkan jam sistem dengan server waktu (NTP)
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              {ntpLoading && !ntpStatus ? (
+                <Skeleton className="h-24 w-full" />
+              ) : ntpStatus ? (
+                <div className="space-y-3">
+                  <div className="flex items-center gap-3 p-3 rounded-md border border-border">
+                    {ntpStatus.check.success ? (
+                      <CheckCircle2 className="h-5 w-5 text-risk-low shrink-0" />
+                    ) : (
+                      <AlertTriangle className="h-5 w-5 text-destructive shrink-0" />
+                    )}
+                    <div className="flex-1 text-sm">
+                      <p className="font-medium">
+                        {ntpStatus.check.success
+                          ? "Terhubung ke server NTP"
+                          : "Server NTP tidak terjangkau"}
+                      </p>
+                      <p className="text-xs text-muted-foreground">
+                        Server:{" "}
+                        <span className="font-mono">{ntpStatus.check.server}</span>
+                        {" · "}Offset:{" "}
+                        <span className="font-mono">
+                          {formatOffset(ntpStatus.check.offsetMs)}
+                        </span>
+                        {" · "}RTT:{" "}
+                        <span className="font-mono">
+                          {ntpStatus.check.roundTripMs} ms
+                        </span>
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="grid grid-cols-2 gap-2 text-xs">
+                    <div className="p-2 bg-muted/30 rounded-md">
+                      <p className="text-muted-foreground mb-1">Waktu Server (NTP)</p>
+                      <p className="font-mono font-medium">
+                        {ntpStatus.check.serverTimeIso
+                          ? new Date(ntpStatus.check.serverTimeIso).toLocaleString(
+                              "id-ID"
+                            )
+                          : "-"}
+                      </p>
+                    </div>
+                    <div className="p-2 bg-muted/30 rounded-md">
+                      <p className="text-muted-foreground mb-1">Waktu Server Saat Ini</p>
+                      <p className="font-mono font-medium">
+                        {new Date().toLocaleString("id-ID")}
+                      </p>
+                    </div>
+                  </div>
+
+                  {!ntpStatus.capability?.canSetTime && (
+                    <div className="flex items-start gap-2 p-3 rounded-md bg-muted/60 border border-border text-xs text-muted-foreground">
+                      <AlertTriangle className="h-4 w-4 shrink-0 mt-0.5" />
+                      <p>
+                        {ntpStatus.capability?.hint ||
+                          "Kontainer tidak memiliki izin untuk mengubah jam sistem."}
+                      </p>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              <div className="flex flex-wrap gap-2">
+                <Button
+                  variant="outline"
+                  onClick={loadNtpStatus}
+                  disabled={ntpLoading || ntpSyncing}
+                >
+                  {ntpLoading ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <RefreshCw className="h-4 w-4 mr-2" />
+                  )}
+                  Tes Koneksi
+                </Button>
+                <Button
+                  onClick={handleSyncNtp}
+                  disabled={ntpSyncing || ntpLoading}
+                >
+                  {ntpSyncing ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <Clock className="h-4 w-4 mr-2" />
+                  )}
+                  Sync Sekarang
+                </Button>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card>
+            <CardHeader>
+              <CardTitle className="text-base">Konfigurasi Server NTP</CardTitle>
+              <CardDescription>
+                Server waktu yang digunakan untuk sinkronisasi
+              </CardDescription>
+            </CardHeader>
+            <CardContent className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="ntpServer">Server NTP</Label>
+                <Input
+                  id="ntpServer"
+                  value={ntpServer}
+                  onChange={(e) => setNtpServer(e.target.value)}
+                  placeholder="id.pool.ntp.org"
+                />
+                <p className="text-[10px] text-muted-foreground">
+                  Contoh: id.pool.ntp.org, time.google.com, atau{" "}
+                  <code>ntp.internal.domain:123</code>
+                </p>
+              </div>
+              <Button onClick={handleSaveNtp} disabled={savingNtp}>
+                {savingNtp ? (
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                ) : (
+                  <Save className="h-4 w-4 mr-2" />
+                )}
+                Simpan Server NTP
+              </Button>
+            </CardContent>
+          </Card>
+        </div>
       )}
 
       {/* Create Device Type Dialog */}

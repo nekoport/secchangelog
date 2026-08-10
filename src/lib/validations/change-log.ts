@@ -19,9 +19,8 @@ export const createChangeLogSchema = z.object({
     .or(z.literal("")),
   requestor: z
     .string()
-    .max(100, "Pemohon maksimal 100 karakter")
-    .optional()
-    .or(z.literal("")),
+    .min(1, "Pemohon wajib diisi")
+    .max(100, "Pemohon maksimal 100 karakter"),
   changeType: z.enum(CHANGE_TYPES, {
     message: "Jenis perubahan tidak valid",
   }),

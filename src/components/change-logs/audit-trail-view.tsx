@@ -5,7 +5,6 @@ import { useQuery } from "@tanstack/react-query";
 import { Card, CardContent } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectContent,
@@ -49,8 +48,15 @@ const ACTION_LABELS: Record<string, string> = {
   DEACTIVATE_DEVICE_TYPE: "Nonaktifkan device type",
   UPDATE_SYSTEM_SETTING: "Update setting",
   UPDATE_SYSTEM_LOGO: "Update logo",
+  UPDATE_SYSTEM_FAVICON: "Update favicon",
+  CREATE_DEVICE: "Buat perangkat",
+  UPDATE_DEVICE: "Update perangkat",
+  DEACTIVATE_DEVICE: "Nonaktifkan perangkat",
   EXPORT_EXCEL: "Export Excel",
   EXPORT_PDF: "Export PDF",
+  CHANGE_THEME: "Ganti tema",
+  NTP_SYNC: "Sync waktu NTP",
+  UPDATE_NTP_SETTING: "Update NTP",
 };
 
 export function AuditTrailView() {
@@ -82,11 +88,19 @@ export function AuditTrailView() {
 
   // Apply client-side search (since audit trail search by user isn't supported in API)
   const filteredItems = (data?.items || []).filter(
-    (item: { user?: { name?: string }; action?: string; entityId?: string }) =>
+    (item: {
+      user?: { name?: string };
+      action?: string;
+      actionText?: string;
+      entityId?: string;
+      entityLabel?: string;
+    }) =>
       !search ||
       item.user?.name?.toLowerCase().includes(search.toLowerCase()) ||
       item.action?.toLowerCase().includes(search.toLowerCase()) ||
-      item.entityId?.toLowerCase().includes(search.toLowerCase())
+      item.actionText?.toLowerCase().includes(search.toLowerCase()) ||
+      item.entityId?.toLowerCase().includes(search.toLowerCase()) ||
+      item.entityLabel?.toLowerCase().includes(search.toLowerCase())
   );
 
   async function handleExport() {
@@ -219,8 +233,10 @@ export function AuditTrailView() {
                   filteredItems.map((item: {
                     id: string;
                     action: string;
+                    actionText?: string;
                     entityType: string;
                     entityId: string;
+                    entityLabel?: string;
                     ipAddress: string | null;
                     timestamp: string;
                     user: { id: string; name: string; email: string; role: string };
@@ -238,14 +254,17 @@ export function AuditTrailView() {
                         </div>
                       </TableCell>
                       <TableCell>
-                        <Badge variant="outline" className="text-[10px]">
-                          {ACTION_LABELS[item.action] || item.action}
-                        </Badge>
+                        <div className="text-xs font-medium">
+                          {item.actionText || ACTION_LABELS[item.action] || item.action}
+                        </div>
+                        <div className="text-[10px] text-muted-foreground uppercase">
+                          {item.action}
+                        </div>
                       </TableCell>
                       <TableCell className="text-xs">
                         <div>{item.entityType}</div>
-                        <div className="text-[10px] text-muted-foreground font-mono">
-                          {item.entityId.slice(0, 12)}...
+                        <div className="text-[10px] text-muted-foreground">
+                          {item.entityLabel || item.entityId.slice(0, 12) + "..."}
                         </div>
                       </TableCell>
                       <TableCell className="text-xs font-mono text-muted-foreground">

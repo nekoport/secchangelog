@@ -209,12 +209,14 @@ export class ExportService {
       let logoOffsetX = 50;
       if (logoPath) {
         try {
-          const logoFullPath = path.join(process.cwd(), "public", logoPath);
+          // Stored path may contain a cache-busting query (?v=...), strip it
+          const logoFile = logoPath.split("?")[0];
+          const logoFullPath = path.join(process.cwd(), "public", logoFile);
           const logoBuffer = await fs.readFile(logoFullPath);
           // Determine image type
-          if (logoPath.endsWith(".png")) {
+          if (logoFile.endsWith(".png")) {
             doc.image(logoBuffer, 50, 50, { width: 60, height: 60 });
-          } else if (logoPath.endsWith(".jpg") || logoPath.endsWith(".jpeg")) {
+          } else if (logoFile.endsWith(".jpg") || logoFile.endsWith(".jpeg")) {
             doc.image(logoBuffer, 50, 50, { width: 60, height: 60 });
           }
           // SVG not supported by pdfkit directly - skip

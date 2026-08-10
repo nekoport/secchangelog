@@ -5,6 +5,9 @@ services:
       dockerfile: Dockerfile
     container_name: secchangelog-app
     restart: unless-stopped
+    # Required so the in-app NTP sync can set the system clock (date -s)
+    cap_add:
+      - SYS_TIME
     env_file:
       - .env
     environment:

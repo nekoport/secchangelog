@@ -626,7 +626,7 @@ function ChangeLogDetailDialog({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-5xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-w-[1400px] w-[min(1400px,96vw)] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>Detail Change Log</span>
@@ -658,7 +658,7 @@ function ChangeLogDetailDialog({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 p-3 bg-muted/30 rounded-md">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-muted/30 rounded-md">
               <div>
                 <p className="text-[10px] uppercase text-muted-foreground">
                   Perangkat

@@ -4,10 +4,13 @@ import type { CreateChangeLogInput, UpdateChangeLogInput } from "@/lib/validatio
 
 export class ChangeLogService {
   static async generateTicketId(): Promise<string> {
-    const year = new Date().getFullYear();
-    const prefix = `CHG-${year}-`;
+    const now = new Date();
+    const yyyy = now.getFullYear();
+    const mm = String(now.getMonth() + 1).padStart(2, "0");
+    const dd = String(now.getDate()).padStart(2, "0");
+    const prefix = `SOC-${yyyy}/${mm}/${dd}-`;
 
-    // Find the highest sequence for this year
+    // Find the highest sequence for today
     const lastLog = await db.changeLog.findFirst({
       where: { ticketId: { startsWith: prefix } },
       orderBy: { ticketId: "desc" },
@@ -15,7 +18,7 @@ export class ChangeLogService {
 
     let nextSeq = 1;
     if (lastLog) {
-      const lastSeq = parseInt(lastLog.ticketId.split("-")[2], 10);
+      const lastSeq = parseInt(lastLog.ticketId.slice(prefix.length), 10);
       if (!isNaN(lastSeq)) nextSeq = lastSeq + 1;
     }
 

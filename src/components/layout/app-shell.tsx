@@ -54,6 +54,26 @@ const NAV_ITEMS: NavItem[] = [
   { id: "settings", label: "Settings", icon: Settings, roles: ["ADMIN"] },
 ];
 
+const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+  {
+    label: "Utama",
+    items: [
+      NAV_ITEMS.find((n) => n.id === "dashboard")!,
+      NAV_ITEMS.find((n) => n.id === "logs")!,
+      NAV_ITEMS.find((n) => n.id === "new-log")!,
+    ],
+  },
+  {
+    label: "Manajemen",
+    items: [
+      NAV_ITEMS.find((n) => n.id === "delete-requests")!,
+      NAV_ITEMS.find((n) => n.id === "audit-trail")!,
+      NAV_ITEMS.find((n) => n.id === "users")!,
+      NAV_ITEMS.find((n) => n.id === "settings")!,
+    ],
+  },
+];
+
 function canSee(item: NavItem, role: Role): boolean {
   if (!item.roles) return true;
   return item.roles.includes(role);
@@ -97,32 +117,48 @@ function SidebarContent({
       </div>
 
       {/* Nav */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-1">
-        {NAV_ITEMS.filter((item) => canSee(item, role)).map((item) => {
-          const Icon = item.icon;
-          const active = current === item.id;
+      <nav className="flex-1 overflow-y-auto p-3 space-y-4">
+        {NAV_GROUPS.map((group) => {
+          const items = group.items.filter((item) => canSee(item, role));
+          if (items.length === 0) return null;
           return (
-            <button
-              key={item.id}
-              onClick={() => onNavigate(item.id)}
-              className={cn(
-                "flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 group",
-                active
-                  ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-sm glow-primary"
-                  : "text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground"
-              )}
-            >
-              <Icon className="h-4 w-4 shrink-0" />
-              <span className="flex-1 text-left truncate">{item.label}</span>
-              {item.id === "delete-requests" && pendingDeleteCount > 0 && (
-                <Badge
-                  variant="destructive"
-                  className="h-5 px-1.5 text-[10px]"
-                >
-                  {pendingDeleteCount}
-                </Badge>
-              )}
-            </button>
+            <div key={group.label}>
+              <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
+                {group.label}
+              </p>
+              <div className="space-y-1">
+                {items.map((item) => {
+                  const Icon = item.icon;
+                  const active = current === item.id;
+                  return (
+                    <button
+                      key={item.id}
+                      onClick={() => onNavigate(item.id)}
+                      title={item.label}
+                      className={cn(
+                        "flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 border-l-[3px] group",
+                        active
+                          ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md glow-primary ring-1 ring-primary/40 border-l-primary translate-x-0"
+                          : "border-l-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5"
+                      )}
+                    >
+                      <Icon className="h-4 w-4 shrink-0" />
+                      <span className="flex-1 text-left truncate">
+                        {item.label}
+                      </span>
+                      {item.id === "delete-requests" && pendingDeleteCount > 0 && (
+                        <Badge
+                          variant="destructive"
+                          className="h-5 px-1.5 text-[10px]"
+                        >
+                          {pendingDeleteCount}
+                        </Badge>
+                      )}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           );
         })}
       </nav>

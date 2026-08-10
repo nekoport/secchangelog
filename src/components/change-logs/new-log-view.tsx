@@ -158,8 +158,8 @@ export function NewLogView({
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
-    if (!deviceTypeId || !deviceName || !changeType) {
-      toast.error("Lengkapi semua field wajib");
+    if (!deviceTypeId || !deviceName || !changeType || !requestor.trim()) {
+      toast.error("Lengkapi semua field wajib (termasuk Pemohon)");
       return;
     }
     setSubmitting(true);
@@ -242,7 +242,9 @@ export function NewLogView({
               </Select>
             </div>
             <div className="space-y-2">
-              <Label htmlFor="requestor">Pemohon</Label>
+              <Label htmlFor="requestor">
+                Pemohon <span className="text-destructive">*</span>
+              </Label>
               <Input
                 id="requestor"
                 value={requestor}

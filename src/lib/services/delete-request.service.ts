@@ -128,7 +128,10 @@ export class DeleteRequestService {
       throw new Error("FORBIDDEN");
     }
 
-    const dr = await db.deleteRequest.findUnique({ where: { id } });
+    const dr = await db.deleteRequest.findUnique({
+      where: { id },
+      include: { changeLog: { select: { ticketId: true, id: true } } },
+    });
     if (!dr) throw new Error("NOT_FOUND");
     if (dr.status !== "PENDING") throw new Error("ALREADY_PROCESSED");
 
@@ -159,6 +162,7 @@ export class DeleteRequestService {
       entityId: id,
       metadata: {
         changeLogId: dr.changeLogId,
+        ticketId: dr.changeLog.ticketId,
         note,
       },
       ipAddress: requestInfo?.ipAddress,
@@ -170,7 +174,7 @@ export class DeleteRequestService {
       action: "SOFT_DELETE_CHANGE_LOG",
       entityType: "ChangeLog",
       entityId: dr.changeLogId,
-      metadata: { via: "delete_request", requestId: id },
+      metadata: { via: "delete_request", requestId: id, ticketId: dr.changeLog.ticketId },
       ipAddress: requestInfo?.ipAddress,
       userAgent: requestInfo?.userAgent,
     });
@@ -189,7 +193,10 @@ export class DeleteRequestService {
       throw new Error("FORBIDDEN");
     }
 
-    const dr = await db.deleteRequest.findUnique({ where: { id } });
+    const dr = await db.deleteRequest.findUnique({
+      where: { id },
+      include: { changeLog: { select: { ticketId: true, id: true } } },
+    });
     if (!dr) throw new Error("NOT_FOUND");
     if (dr.status !== "PENDING") throw new Error("ALREADY_PROCESSED");
 
@@ -210,6 +217,7 @@ export class DeleteRequestService {
       entityId: id,
       metadata: {
         changeLogId: dr.changeLogId,
+        ticketId: dr.changeLog.ticketId,
         note,
       },
       ipAddress: requestInfo?.ipAddress,

@@ -10,10 +10,32 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { useIsClient } from "@/hooks/use-is-client";
+import { useSession } from "next-auth/react";
+import { useQueryClient } from "@tanstack/react-query";
 
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const isClient = useIsClient();
+  const { status } = useSession();
+  const qc = useQueryClient();
+
+  function applyTheme(next: "light" | "dark") {
+    setTheme(next);
+    // Persist as the system default theme so the whole app stays in sync.
+    if (status === "authenticated") {
+      fetch("/api/admin/settings", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ "system.defaultTheme": next }),
+      })
+        .then((res) => {
+          if (res.ok) {
+            qc.invalidateQueries({ queryKey: ["system-settings"] });
+          }
+        })
+        .catch(() => {});
+    }
+  }
 
   if (!isClient) {
     return (
@@ -36,10 +58,10 @@ export function ThemeToggle() {
         </Button>
       </DropdownMenuTrigger>
       <DropdownMenuContent align="end">
-        <DropdownMenuItem onClick={() => setTheme("light")}>
+        <DropdownMenuItem onClick={() => applyTheme("light")}>
           <Sun className="mr-2 h-4 w-4" /> Light
         </DropdownMenuItem>
-        <DropdownMenuItem onClick={() => setTheme("dark")}>
+        <DropdownMenuItem onClick={() => applyTheme("dark")}>
           <Moon className="mr-2 h-4 w-4" /> Dark
         </DropdownMenuItem>
       </DropdownMenuContent>

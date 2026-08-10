@@ -42,10 +42,11 @@ export function AppIdentity() {
         link.rel = "icon";
         document.head.appendChild(link);
       }
+      const faviconExt = faviconPath.split("?")[0];
       link.href = faviconPath;
-      link.type = faviconPath.endsWith(".svg")
+      link.type = faviconExt.endsWith(".svg")
         ? "image/svg+xml"
-        : faviconPath.endsWith(".ico")
+        : faviconExt.endsWith(".ico")
         ? "image/x-icon"
         : "image/png";
     } else if (link) {
