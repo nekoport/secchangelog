@@ -59,12 +59,9 @@ export interface ChangeLogWithRelations {
   descriptionAfter: string;
   reason: string;
   riskLevel: string;
-  status: string;
   picId: string;
   rollbackPlan: string | null;
   implementedAt: Date;
-  verifiedAt: Date | null;
-  verifiedById: string | null;
   isDeleted: boolean;
   deletedAt: Date | null;
   createdById: string;
@@ -73,7 +70,6 @@ export interface ChangeLogWithRelations {
   deviceType: { id: string; name: string };
   pic: { id: string; name: string };
   creator: { id: string; name: string };
-  verifier: { id: string; name: string } | null;
   screenshots: Array<{
     id: string;
     filename: string;

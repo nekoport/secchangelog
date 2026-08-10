@@ -36,7 +36,6 @@ interface DashboardStats {
   lastMonth: number;
   byDeviceType: Array<{ deviceType: string; count: number }>;
   byRiskLevel: Record<string, number>;
-  byStatus: Record<string, number>;
   byPic: Array<{ user: { id: string; name: string }; count: number }>;
   trend30Days: Array<{ date: string; count: number }>;
   pendingDeleteRequests: number;
@@ -60,6 +59,8 @@ const ACTION_LABELS: Record<string, string> = {
   APPROVE_DELETE_REQUEST: "Approve hapus",
   REJECT_DELETE_REQUEST: "Reject hapus",
   UPLOAD_SCREENSHOT: "Upload screenshot",
+  DELETE_SCREENSHOT: "Hapus screenshot",
+  SOFT_DELETE_CHANGE_LOG: "Hapus change log",
   CREATE_USER: "Buat user",
   UPDATE_USER: "Update user",
   EXPORT_EXCEL: "Export Excel",

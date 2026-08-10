@@ -24,12 +24,22 @@ function LoginForm() {
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [systemName, setSystemName] = useState<string>("");
 
   useEffect(() => {
     if (status === "authenticated") {
       router.replace("/");
     }
   }, [status, router]);
+
+  useEffect(() => {
+    fetch("/api/public/system", { cache: "no-store" })
+      .then((res) => (res.ok ? res.json() : null))
+      .then((json) => {
+        if (json?.data?.name) setSystemName(json.data.name);
+      })
+      .catch(() => {});
+  }, []);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -68,7 +78,9 @@ function LoginForm() {
             <ShieldCheck className="h-9 w-9" />
           </div>
           <div className="text-center">
-            <h1 className="text-2xl font-bold tracking-tight">SecChangeLog</h1>
+            <h1 className="text-2xl font-bold tracking-tight">
+              {systemName || "SecChangeLog"}
+            </h1>
             <p className="text-sm text-muted-foreground">
               Sistem Pencatatan Perubahan Konfigurasi
             </p>
@@ -115,7 +127,7 @@ function LoginForm() {
                 />
               </div>
             </CardContent>
-            <CardFooter>
+            <CardFooter className="mt-4 flex flex-col gap-3">
               <Button
                 type="submit"
                 disabled={loading || !username || !password}

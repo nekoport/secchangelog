@@ -73,6 +73,16 @@ function SidebarContent({
   const { settings } = useSystemSettings();
   const systemName = settings?.["system.name"] || "SecChangeLog";
 
+  function handleLogout() {
+    // Fire signout, but never let a hanging redirect block the navigation.
+    Promise.race([
+      signOut({ redirect: false, callbackUrl: "/login" }).catch(() => {}),
+      new Promise((resolve) => setTimeout(resolve, 2500)),
+    ]).then(() => {
+      window.location.assign("/login");
+    });
+  }
+
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
       {/* Logo & System Name */}
@@ -139,23 +149,25 @@ function SidebarContent({
             className="h-8 w-8 text-muted-foreground hover:text-primary"
             onClick={() => onNavigate("profile")}
             title="Profile"
+            type="button"
           >
             <User className="h-4 w-4" />
           </Button>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-destructive"
-            onClick={() => signOut({ callbackUrl: "/login" })}
-            title="Logout"
-          >
-            <LogOut className="h-4 w-4" />
-          </Button>
         </div>
-        <div className="mt-2 flex justify-center">
+        <div className="mt-2 flex items-center gap-2">
           <Badge variant="outline" className="text-[10px] uppercase">
             {role}
           </Badge>
+          <Button
+            variant="ghost"
+            size="sm"
+            type="button"
+            className="flex-1 gap-2 text-muted-foreground hover:text-destructive hover:bg-sidebar-accent"
+            onClick={handleLogout}
+          >
+            <LogOut className="h-4 w-4" />
+            Logout
+          </Button>
         </div>
       </div>
     </div>

@@ -101,27 +101,10 @@ export class FileStorageService {
   static async deleteScreenshot(
     id: string,
     userId: string,
-    userRole: string,
     requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
   ) {
     const screenshot = await db.screenshot.findUnique({ where: { id } });
     if (!screenshot) throw new Error("NOT_FOUND");
-
-    // Check ownership via change log
-    if (userRole !== "ADMIN") {
-      if (!screenshot.changeLogId) {
-        throw new Error("FORBIDDEN");
-      }
-      const changeLog = await db.changeLog.findUnique({
-        where: { id: screenshot.changeLogId },
-      });
-      if (!changeLog || changeLog.createdById !== userId) {
-        throw new Error("FORBIDDEN");
-      }
-      if (changeLog.status !== "DRAFT") {
-        throw new Error("DELETE_NOT_ALLOWED");
-      }
-    }
 
     // Delete file
     const filePath = safeJoinPath(SCREENSHOTS_DIR, screenshot.filename);
@@ -195,7 +178,9 @@ export class FileStorageService {
 
     await fs.writeFile(filePath, buffer);
 
-    return `/uploads/logos/${filename}`;
+    // Append cache-busting version so re-uploading with the same filename
+    // doesn't get served from the browser cache
+    return `/uploads/logos/${filename}?v=${Date.now()}`;
   }
 
   static async getLogoBuffer(filename: string) {
@@ -208,6 +193,19 @@ export class FileStorageService {
       return await fs.readFile(filePath);
     } catch {
       return null;
+    }
+  }
+
+  static async clearLogos(): Promise<void> {
+    try {
+      const files = await fs.readdir(LOGOS_DIR);
+      for (const f of files) {
+        if (f.startsWith("system-logo")) {
+          await fs.unlink(safeJoinPath(LOGOS_DIR, f)).catch(() => {});
+        }
+      }
+    } catch {
+      // ignore
     }
   }
 
@@ -263,7 +261,8 @@ export class FileStorageService {
 
     await fs.writeFile(filePath, buffer);
 
-    return `/uploads/favicons/${filename}`;
+    // Cache-busting version (see saveLogo)
+    return `/uploads/favicons/${filename}?v=${Date.now()}`;
   }
 
   static async clearFavicons(): Promise<void> {

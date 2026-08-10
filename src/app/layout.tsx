@@ -5,7 +5,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { Toaster as SonnerToaster } from "@/components/ui/sonner";
 import { ThemeProvider } from "@/providers/theme-provider";
 import { QueryProvider } from "@/providers/query-provider";
-import { Favicon } from "@/components/shared/favicon";
+import { AppIdentity } from "@/components/shared/app-identity";
 
 const inter = Inter({
   variable: "--font-geist-sans",
@@ -45,7 +45,7 @@ export default function RootLayout({
         >
           <QueryProvider>
             {children}
-            <Favicon />
+            <AppIdentity />
             <Toaster />
             <SonnerToaster position="top-right" richColors />
           </QueryProvider>

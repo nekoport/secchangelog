@@ -21,15 +21,6 @@ export const RISK_LEVELS = {
 
 export type RiskLevel = keyof typeof RISK_LEVELS;
 
-export const CHANGE_LOG_STATUS = {
-  DRAFT: "DRAFT",
-  IMPLEMENTED: "IMPLEMENTED",
-  VERIFIED: "VERIFIED",
-  FAILED: "FAILED",
-} as const;
-
-export type ChangeLogStatus = keyof typeof CHANGE_LOG_STATUS;
-
 export const CHANGE_TYPES = [
   "ACL",
   "ROUTING",

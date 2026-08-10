@@ -27,7 +27,6 @@ export async function GET(req: Request) {
     search: url.searchParams.get("search") || undefined,
     deviceTypeId: url.searchParams.get("deviceTypeId") || undefined,
     riskLevel: url.searchParams.get("riskLevel") || undefined,
-    status: url.searchParams.get("status") || undefined,
     picId: url.searchParams.get("picId") || undefined,
     changeType: url.searchParams.get("changeType") || undefined,
     from: url.searchParams.get("from") ? new Date(url.searchParams.get("from")!) : undefined,

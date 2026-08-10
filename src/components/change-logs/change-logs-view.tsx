@@ -41,7 +41,6 @@ import {
   Trash2,
   AlertTriangle,
   Edit,
-  CheckCircle2,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
@@ -73,7 +72,6 @@ interface ChangeLog {
   requestor: string | null;
   changeType: string;
   riskLevel: string;
-  status: string;
   pic: { id: string; name: string };
   implementedAt: string;
   createdAt: string;
@@ -200,37 +198,11 @@ export function ChangeLogsView({
   };
 
   const canEdit = (log: ChangeLog) => {
+    // Any authenticated user can edit any log (recorded in audit trail)
     if (!session?.user) return false;
     if (log.isDeleted) return false;
-    if (session.user.role === "ADMIN") return true;
-    // Engineer can edit own DRAFT logs
-    if (log.status === "DRAFT" && log.pic.id === session.user.id) return true;
-    return false;
+    return true;
   };
-
-  const canVerify = (logStatus: string) => {
-    if (!session?.user) return false;
-    if (!["SUPERVISOR", "ADMIN"].includes(session.user.role)) return false;
-    return logStatus === "IMPLEMENTED" || logStatus === "DRAFT";
-  };
-
-  async function handleVerify(id: string) {
-    try {
-      const res = await fetch(`/api/change-logs/${id}/verify`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        const err = await res.json();
-        throw new Error(err.error?.message || "Gagal");
-      }
-      toast.success("Change log berhasil diverifikasi");
-      qc.invalidateQueries({ queryKey: ["change-log", id] });
-      qc.invalidateQueries({ queryKey: ["change-logs"] });
-      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
 
   return (
     <div className="space-y-4">
@@ -545,19 +517,7 @@ export function ChangeLogsView({
             setDetailId(null);
             onNavigate("edit-log", targetId);
           }}
-          onVerify={() => {
-            handleVerify(detailId);
-          }}
-          canEditFlag={
-            !!session?.user &&
-            (session.user.role === "ADMIN" ||
-              (data?.items?.find((l) => l.id === detailId)?.status === "DRAFT" &&
-                data?.items?.find((l) => l.id === detailId)?.pic.id ===
-                  session.user.id))
-          }
-          canVerifyFlag={canVerify(
-            data?.items?.find((l) => l.id === detailId)?.status || ""
-          )}
+          canEditFlag={!!session?.user}
         />
       )}
 
@@ -627,16 +587,12 @@ function ChangeLogDetailDialog({
   id,
   onClose,
   onEdit,
-  onVerify,
   canEditFlag,
-  canVerifyFlag,
 }: {
   id: string;
   onClose: () => void;
   onEdit: () => void;
-  onVerify: () => void;
   canEditFlag: boolean;
-  canVerifyFlag: boolean;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ["change-log", id],
@@ -679,17 +635,6 @@ function ChangeLogDetailDialog({
                 <Button variant="outline" size="sm" onClick={onEdit}>
                   <Edit className="h-3.5 w-3.5 mr-1.5" />
                   Edit
-                </Button>
-              )}
-              {canVerifyFlag && data?.status !== "VERIFIED" && (
-                <Button
-                  variant="default"
-                  size="sm"
-                  onClick={onVerify}
-                  className="bg-risk-low hover:bg-risk-low/90"
-                >
-                  <CheckCircle2 className="h-3.5 w-3.5 mr-1.5" />
-                  Verify
                 </Button>
               )}
               <Button variant="outline" size="sm" onClick={handleExportPdf}>

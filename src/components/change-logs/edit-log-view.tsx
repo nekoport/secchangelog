@@ -264,9 +264,7 @@ export function EditLogView({
             <AlertCircle className="h-12 w-12 mx-auto text-destructive mb-3" />
             <h3 className="text-lg font-semibold mb-2">Akses Ditolak</h3>
             <p className="text-sm text-muted-foreground mb-4">
-              Change log yang sudah berstatus <strong>IMPLEMENTED</strong> atau
-              lebih lanjut tidak bisa diedit. Hanya change log berstatus DRAFT
-              atau oleh Admin yang bisa diedit.
+              Anda tidak memiliki izin untuk mengubah change log ini.
             </p>
             <Button onClick={() => onNavigate("logs")}>Kembali ke List</Button>
           </CardContent>

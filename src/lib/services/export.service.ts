@@ -6,7 +6,6 @@ interface ExportFilters {
   search?: string;
   deviceTypeId?: string;
   riskLevel?: string;
-  status?: string;
   picId?: string;
   changeType?: string;
   from?: Date;
@@ -65,7 +64,6 @@ export class ExportService {
     }
     if (filters.deviceTypeId) where.deviceTypeId = filters.deviceTypeId;
     if (filters.riskLevel) where.riskLevel = filters.riskLevel;
-    if (filters.status) where.status = filters.status;
     if (filters.picId) where.picId = filters.picId;
     if (filters.changeType) where.changeType = filters.changeType;
 
@@ -82,7 +80,6 @@ export class ExportService {
         deviceType: { select: { name: true } },
         pic: { select: { name: true } },
         creator: { select: { name: true } },
-        verifier: { select: { name: true } },
       },
       orderBy: { implementedAt: "desc" },
     });
@@ -112,10 +109,6 @@ export class ExportService {
       "Perubahan Konfigurasi": log.descriptionAfter,
       "Keterangan": log.reason,
       "Rollback Plan": log.rollbackPlan || "",
-      "Diverifikasi Oleh": log.verifier?.name || "",
-      "Tanggal Diverifikasi": log.verifiedAt
-        ? log.verifiedAt.toISOString().slice(0, 19).replace("T", " ")
-        : "",
       "Tanggal Dibuat": log.createdAt.toISOString().slice(0, 19).replace("T", " "),
     }));
 
@@ -123,8 +116,7 @@ export class ExportService {
     ws1["!cols"] = [
       { wch: 14 }, { wch: 20 }, { wch: 18 }, { wch: 18 }, { wch: 14 },
       { wch: 16 }, { wch: 18 }, { wch: 18 }, { wch: 18 }, { wch: 50 },
-      { wch: 50 }, { wch: 40 }, { wch: 40 }, { wch: 18 }, { wch: 20 },
-      { wch: 20 },
+      { wch: 50 }, { wch: 40 }, { wch: 40 }, { wch: 20 },
     ];
 
     // Sheet 2: Summary
@@ -179,7 +171,6 @@ export class ExportService {
         deviceType: { select: { name: true } },
         pic: { select: { name: true, email: true } },
         creator: { select: { name: true } },
-        verifier: { select: { name: true } },
         screenshots: true,
       },
     });
@@ -286,8 +277,6 @@ export class ExportService {
         ["PIC", log.pic.name],
         ["Pencatat", log.creator.name],
         ["Waktu Implementasi", log.implementedAt.toISOString().slice(0, 19).replace("T", " ")],
-        ["Diverifikasi Oleh", log.verifier?.name || "-"],
-        ["Tanggal Verifikasi", log.verifiedAt ? log.verifiedAt.toISOString().slice(0, 19).replace("T", " ") : "-"],
       ];
 
       for (const [label, value] of infoRows) {

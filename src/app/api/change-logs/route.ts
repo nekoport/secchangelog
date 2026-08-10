@@ -32,7 +32,6 @@ export async function GET(req: Request) {
       search: parsed.data.search,
       deviceTypeId: parsed.data.deviceTypeId,
       riskLevel: parsed.data.riskLevel,
-      status: parsed.data.status,
       picId: parsed.data.picId,
       changeType: parsed.data.changeType,
       from: parsed.data.from ? new Date(parsed.data.from) : undefined,

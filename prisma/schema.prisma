@@ -41,7 +41,6 @@ model User {
   sessions        Session[]
   changeLogsPic       ChangeLog[]    @relation("ChangeLogPic")
   changeLogsCreator   ChangeLog[]    @relation("ChangeLogCreator")
-  changeLogsVerifier  ChangeLog[]    @relation("ChangeLogVerifier")
   deleteRequestsRequested DeleteRequest[] @relation("DeleteRequestRequested")
   deleteRequestsApproved  DeleteRequest[] @relation("DeleteRequestApproved")
   auditTrails     AuditTrail[]
@@ -137,12 +136,9 @@ model ChangeLog {
   descriptionAfter  String
   reason            String
   riskLevel         String   // LOW | MEDIUM | HIGH | CRITICAL
-  status            String   @default("IMPLEMENTED") // DRAFT | IMPLEMENTED | VERIFIED | FAILED
   picId             String
   rollbackPlan      String?
   implementedAt     DateTime
-  verifiedAt        DateTime?
-  verifiedById      String?
 
   isDeleted         Boolean  @default(false)
   deletedAt         DateTime?
@@ -152,16 +148,14 @@ model ChangeLog {
   updatedAt         DateTime @updatedAt
 
   // Relations
-  deviceType        DeviceType     @relation(fields: [deviceTypeId], references: [id])
-  device            Device?        @relation(fields: [deviceId], references: [id], onDelete: SetNull)
-  pic               User           @relation("ChangeLogPic", fields: [picId], references: [id])
-  creator           User           @relation("ChangeLogCreator", fields: [createdById], references: [id])
-  verifier          User?          @relation("ChangeLogVerifier", fields: [verifiedById], references: [id])
-  screenshots       Screenshot[]
-  deleteRequests    DeleteRequest[]
+deviceType         DeviceType     @relation(fields: [deviceTypeId], references: [id])
+  device             Device?        @relation(fields: [deviceId], references: [id], onDelete: SetNull)
+  pic                User           @relation("ChangeLogPic", fields: [picId], references: [id])
+  creator            User           @relation("ChangeLogCreator", fields: [createdById], references: [id])
+  screenshots        Screenshot[]
+  deleteRequests     DeleteRequest[]
 
   @@index([deviceTypeId, createdAt])
-  @@index([status, createdAt])
   @@index([riskLevel, createdAt])
   @@index([picId])
   @@index([isDeleted])

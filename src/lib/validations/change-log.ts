@@ -2,7 +2,6 @@ import { z } from "zod";
 import {
   CHANGE_TYPES,
   RISK_LEVELS,
-  CHANGE_LOG_STATUS,
   SCREENSHOT_TYPES,
 } from "../constants";
 
@@ -43,10 +42,6 @@ export const createChangeLogSchema = z.object({
       message: "Risk level tidak valid",
     })
     .optional(),
-  status: z
-    .enum(Object.keys(CHANGE_LOG_STATUS) as [string, ...string[]])
-    .optional()
-    .default("IMPLEMENTED"),
   rollbackPlan: z
     .string()
     .max(2000, "Rollback plan maksimal 2000 karakter")
@@ -74,7 +69,6 @@ export const listChangeLogsQuerySchema = z.object({
   search: z.string().max(200).optional(),
   deviceTypeId: z.string().optional(),
   riskLevel: z.string().optional(),
-  status: z.string().optional(),
   picId: z.string().optional(),
   changeType: z.string().optional(),
   from: z.string().optional(),

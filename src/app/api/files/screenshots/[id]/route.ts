@@ -44,7 +44,6 @@ export async function DELETE(
     await FileStorageService.deleteScreenshot(
       id,
       session.user.id,
-      session.user.role,
       {
         ipAddress: req.headers.get("x-forwarded-for"),
         userAgent: req.headers.get("user-agent"),
@@ -54,18 +53,6 @@ export async function DELETE(
   } catch (err) {
     const msg = (err as Error).message;
     if (msg === "NOT_FOUND") return notFound();
-    if (msg === "FORBIDDEN") {
-      return Response.json(
-        { error: { code: "FORBIDDEN", message: "Tidak punya izin hapus file ini" } },
-        { status: 403 }
-      );
-    }
-    if (msg === "DELETE_NOT_ALLOWED") {
-      return Response.json(
-        { error: { code: "DELETE_NOT_ALLOWED", message: "Hanya bisa hapus screenshot jika change log masih DRAFT" } },
-        { status: 403 }
-      );
-    }
     console.error("[API files/screenshots/[id] DELETE]:", err);
     return internalError();
   }

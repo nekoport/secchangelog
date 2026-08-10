@@ -69,6 +69,7 @@ export async function DELETE() {
   if (session.user.role !== "ADMIN") return forbidden();
 
   try {
+    await FileStorageService.clearLogos();
     await SystemSettingService.set("system.logoPath", "", session.user.id);
     await AuditTrailService.log({
       userId: session.user.id,
