@@ -133,7 +133,7 @@ export class ExportService {
     // Sheet 1: Change Logs
     const sheet1Data = items.map((log) => ({
       "Ticket ID": log.ticketId,
-      "Tanggal Implementasi": log.implementedAt.toISOString().slice(0, 19).replace("T", " "),
+      "Tanggal Implementasi": formatWibDateTime(log.implementedAt),
       "Jenis Perangkat": log.deviceType.name,
       "Nama Perangkat": log.deviceName,
       "IP Address": log.deviceIp || "",
@@ -145,7 +145,7 @@ export class ExportService {
       "Perubahan Konfigurasi": log.descriptionAfter,
       "Keterangan": log.reason,
       "Rollback Plan": log.rollbackPlan || "",
-      "Tanggal Dibuat": log.createdAt.toISOString().slice(0, 19).replace("T", " "),
+      "Tanggal Dibuat": formatWibDateTime(log.createdAt),
     }));
 
     const ws1 = XLSX.utils.json_to_sheet(sheet1Data);
