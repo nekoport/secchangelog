@@ -45,6 +45,42 @@ function getImageSize(buf: Buffer): { width: number; height: number } {
   throw new Error("UNSUPPORTED_IMAGE");
 }
 
+// WIB = UTC+7 (fixed offset, no DST)
+const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
+const MONTHS_ID = [
+  "Januari", "Februari", "Maret", "April", "Mei", "Juni",
+  "Juli", "Agustus", "September", "Oktober", "November", "Desember",
+];
+
+function pad2(n: number): string {
+  return String(n).padStart(2, "0");
+}
+
+// Convert a Date to WIB wall-clock parts using UTC getters after shifting the offset.
+function wibParts(d: Date) {
+  const w = new Date(d.getTime() + WIB_OFFSET_MS);
+  return {
+    year: w.getUTCFullYear(),
+    month: w.getUTCMonth(),
+    day: w.getUTCDate(),
+    hours: w.getUTCHours(),
+    minutes: w.getUTCMinutes(),
+    seconds: w.getUTCSeconds(),
+  };
+}
+
+// e.g. "2026-08-10 14:09:13 WIB"
+function formatWibDateTime(d: Date): string {
+  const p = wibParts(d);
+  return `${p.year}-${pad2(p.month + 1)}-${pad2(p.day)} ${pad2(p.hours)}:${pad2(p.minutes)}:${pad2(p.seconds)} WIB`;
+}
+
+// e.g. "05 Agustus 2026"
+function formatWibDateId(d: Date): string {
+  const p = wibParts(d);
+  return `${pad2(p.day)} ${MONTHS_ID[p.month]} ${p.year}`;
+}
+
 export class ExportService {
   static async getFilteredChangeLogs(filters: ExportFilters) {
     const where: Record<string, unknown> = {};
@@ -211,12 +247,20 @@ export class ExportService {
         try {
           // Stored path may contain a cache-busting query (?v=...), strip it
           const logoFile = logoPath.split("?")[0];
-          const logoFullPath = path.join(process.cwd(), "public", logoFile);
+          const logoName = logoFile.split("/").pop() || "";
+          // Resolve from the uploads dir (same source as screenshots / API routes)
+          const uploadBase =
+            process.env.UPLOAD_DIR ||
+            path.join(process.cwd(), "public", "uploads");
+          const logoFullPath = path.join(uploadBase, "logos", logoName);
           const logoBuffer = await fs.readFile(logoFullPath);
           // Determine image type
-          if (logoFile.endsWith(".png")) {
+          if (logoName.endsWith(".png")) {
             doc.image(logoBuffer, 50, 50, { width: 60, height: 60 });
-          } else if (logoFile.endsWith(".jpg") || logoFile.endsWith(".jpeg")) {
+          } else if (
+            logoName.endsWith(".jpg") ||
+            logoName.endsWith(".jpeg")
+          ) {
             doc.image(logoBuffer, 50, 50, { width: 60, height: 60 });
           }
           // SVG not supported by pdfkit directly - skip
@@ -258,7 +302,7 @@ export class ExportService {
         .font("Helvetica")
         .fillColor("#666")
         .text(
-          `Generated: ${new Date().toISOString().slice(0, 19).replace("T", " ")} UTC`,
+          `Generated: ${formatWibDateTime(new Date())}`,
           50,
           165
         );
@@ -278,7 +322,7 @@ export class ExportService {
         ["Pemohon", log.requestor || "-"],
         ["PIC", log.pic.name],
         ["Pencatat", log.creator.name],
-        ["Waktu Implementasi", log.implementedAt.toISOString().slice(0, 19).replace("T", " ")],
+        ["Waktu Implementasi", formatWibDateId(log.implementedAt)],
       ];
 
       for (const [label, value] of infoRows) {

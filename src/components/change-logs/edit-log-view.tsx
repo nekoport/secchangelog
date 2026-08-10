@@ -30,6 +30,7 @@ import {
 } from "@/lib/constants";
 import type { ViewType } from "@/components/layout/app-shell";
 import { cn } from "@/lib/utils";
+import { toDatetimeLocalValue } from "@/lib/utils";
 
 interface UploadedScreenshot {
   id: string;
@@ -134,7 +135,7 @@ export function EditLogView({
         setReason(log.reason);
         setRollbackPlan(log.rollbackPlan || "");
         setImplementedAt(
-          new Date(log.implementedAt).toISOString().slice(0, 16)
+          toDatetimeLocalValue(log.implementedAt)
         );
         setScreenshots(
           (log.screenshots || []).map((s: UploadedScreenshot) => ({

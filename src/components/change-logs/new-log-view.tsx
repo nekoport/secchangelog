@@ -31,6 +31,7 @@ import {
 } from "@/lib/constants";
 import type { ViewType } from "@/components/layout/app-shell";
 import { cn } from "@/lib/utils";
+import { toDatetimeLocalValue } from "@/lib/utils";
 
 interface UploadedScreenshot {
   id: string;
@@ -61,8 +62,8 @@ export function NewLogView({
   const [descriptionAfter, setDescriptionAfter] = useState("");
   const [reason, setReason] = useState("");
   const [rollbackPlan, setRollbackPlan] = useState("");
-  const [implementedAt, setImplementedAt] = useState(
-    new Date().toISOString().slice(0, 16)
+  const [implementedAt, setImplementedAt] = useState(() =>
+    toDatetimeLocalValue(new Date())
   );
   const [screenshots, setScreenshots] = useState<UploadedScreenshot[]>([]);
 
