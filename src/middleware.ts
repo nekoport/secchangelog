@@ -34,6 +34,6 @@ export async function middleware(req: NextRequest) {
 export const config = {
   matcher: [
     // Protect all routes except: login, API auth/health/public, static, uploads
-    "/((?!login|api/auth|api/health|api/public|_next/static|_next/image|favicon.ico|uploads|api/dashboard|api/device-types).*)",
+    "/((?!login|api/auth|api/health|api/public|api/files/logo|api/files/favicon|_next/static|_next/image|favicon.ico|uploads|api/dashboard|api/device-types).*)",
   ],
 };

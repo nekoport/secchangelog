@@ -43,7 +43,7 @@ export function AppIdentity() {
         document.head.appendChild(link);
       }
       const faviconExt = faviconPath.split("?")[0];
-      link.href = faviconPath;
+      link.href = "/api/files/favicon";
       link.type = faviconExt.endsWith(".svg")
         ? "image/svg+xml"
         : faviconExt.endsWith(".ico")

@@ -16,7 +16,7 @@ export function Logo({
   if (logoPath) {
     return (
       <img
-        src={logoPath}
+        src={"/api/files/logo"}
         alt="Logo"
         width={size}
         height={size}

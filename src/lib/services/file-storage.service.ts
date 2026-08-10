@@ -196,6 +196,19 @@ export class FileStorageService {
     }
   }
 
+  static async getFaviconBuffer(filename: string) {
+    const safeName = sanitizeFilename(filename);
+    if (!safeName.startsWith("system-favicon")) {
+      throw new Error("Invalid favicon filename");
+    }
+    const filePath = safeJoinPath(FAVICONS_DIR, safeName);
+    try {
+      return await fs.readFile(filePath);
+    } catch {
+      return null;
+    }
+  }
+
   static async clearLogos(): Promise<void> {
     try {
       const files = await fs.readdir(LOGOS_DIR);

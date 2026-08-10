@@ -638,7 +638,7 @@ export function SettingsView() {
                 {settings?.["system.logoPath"] ? (
                    
                   <img
-                    src={settings["system.logoPath"]}
+                    src="/api/files/logo"
                     alt="Logo"
                     className="h-16 w-16 object-contain"
                   />
@@ -706,7 +706,7 @@ export function SettingsView() {
               <div className="flex items-center gap-4 p-4 border border-border rounded-md">
                 {settings?.["system.faviconPath"] ? (
                   <img
-                    src={settings["system.faviconPath"]}
+                    src="/api/files/favicon"
                     alt="Favicon"
                     className="h-8 w-8 object-contain"
                   />
