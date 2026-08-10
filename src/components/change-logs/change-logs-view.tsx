@@ -626,7 +626,7 @@ function ChangeLogDetailDialog({
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-[1400px] w-[min(1400px,96vw)] max-h-[92vh] overflow-y-auto">
+      <DialogContent className="max-w-[1400px] w-[min(1400px,96vw)] sm:max-w-[1400px] max-h-[92vh] overflow-y-auto">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>Detail Change Log</span>
