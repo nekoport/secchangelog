@@ -479,6 +479,287 @@ export class ExportService {
     });
   }
 
+  static async exportToWord(
+    changeLogId: string,
+    userId: string,
+    systemName: string,
+    logoPath?: string,
+    requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
+  ): Promise<Buffer> {
+    const log = await db.changeLog.findUnique({
+      where: { id: changeLogId },
+      include: {
+        deviceType: { select: { name: true } },
+        pic: { select: { name: true } },
+        creator: { select: { name: true } },
+        screenshots: true,
+      },
+    });
+
+    if (!log) throw new Error("NOT_FOUND");
+
+    const {
+      Document,
+      Packer,
+      Paragraph,
+      TextRun,
+      HeadingLevel,
+      AlignmentType,
+      ImageRun,
+    } = await import("docx");
+    const fs = await import("fs/promises");
+    const path = await import("path");
+
+    const uploadBase =
+      process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
+
+    const children: import("docx").Paragraph[] = [];
+
+    const labelParagraph = (label: string, value: string) =>
+      new Paragraph({
+        spacing: { after: 120 },
+        children: [
+          new TextRun({ text: `${label}: `, bold: true }),
+          new TextRun(String(value)),
+        ],
+      });
+
+    // Header: logo + system name
+    if (logoPath) {
+      try {
+        const logoName = logoPath.split("?")[0].split("/").pop() || "";
+        const logoFullPath = path.join(uploadBase, "logos", logoName);
+        const logoBuffer = await fs.readFile(logoFullPath);
+        if (logoName.endsWith(".png")) {
+          children.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new ImageRun({
+                  type: "png",
+                  data: logoBuffer,
+                  transformation: { width: 60, height: 60 },
+                }),
+              ],
+            })
+          );
+        } else if (logoName.endsWith(".jpg") || logoName.endsWith(".jpeg")) {
+          children.push(
+            new Paragraph({
+              alignment: AlignmentType.CENTER,
+              children: [
+                new ImageRun({
+                  type: "jpg",
+                  data: logoBuffer,
+                  transformation: { width: 60, height: 60 },
+                }),
+              ],
+            })
+          );
+        }
+      } catch {
+        // ignore logo errors
+      }
+    }
+
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({ text: systemName, bold: true, size: 36 }),
+        ],
+      })
+    );
+    children.push(
+      new Paragraph({
+        alignment: AlignmentType.CENTER,
+        children: [
+          new TextRun({
+            text: "Configuration Change Report",
+            size: 22,
+            color: "666666",
+          }),
+        ],
+        spacing: { after: 300 },
+      })
+    );
+
+    children.push(
+      new Paragraph({
+        spacing: { before: 200, after: 120 },
+        children: [
+          new TextRun({ text: `Ticket ID: ${log.ticketId}`, bold: true, size: 28 }),
+        ],
+      })
+    );
+    children.push(
+      new Paragraph({
+        children: [
+          new TextRun({
+            text: `Generated: ${formatWibDateTime(new Date())}`,
+            size: 20,
+            color: "666666",
+          }),
+        ],
+        spacing: { after: 300 },
+      })
+    );
+
+    // Section 1: Informasi Perubahan
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 200, after: 200 },
+        children: [new TextRun("Informasi Perubahan")],
+      })
+    );
+    const infoRows: Array<[string, string]> = [
+      ["Jenis Perangkat", log.deviceType.name],
+      ["Nama Perangkat", log.deviceName],
+      ["IP Address", log.deviceIp || "-"],
+      ["Jenis Perubahan", log.changeType],
+      ["Pemohon", log.requestor || "-"],
+      ["PIC", log.pic.name],
+      ["Pencatat", log.creator.name],
+      ["Waktu Implementasi", formatWibDateId(log.implementedAt)],
+    ];
+    for (const [label, value] of infoRows) {
+      children.push(labelParagraph(label, value));
+    }
+
+    // Section 2: Deskripsi Perubahan
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 300, after: 200 },
+        children: [new TextRun("Deskripsi Perubahan")],
+      })
+    );
+    children.push(
+      new Paragraph({
+        spacing: { before: 120 },
+        children: [new TextRun({ text: "PERMINTAAN:", bold: true })],
+      })
+    );
+    children.push(new Paragraph({ text: log.descriptionBefore, spacing: { after: 200 } }));
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: "PERUBAHAN KONFIGURASI:", bold: true })],
+      })
+    );
+    children.push(new Paragraph({ text: log.descriptionAfter, spacing: { after: 200 } }));
+
+    // Section 3: Keterangan & Rollback Plan
+    children.push(
+      new Paragraph({
+        heading: HeadingLevel.HEADING_2,
+        spacing: { before: 300, after: 200 },
+        children: [new TextRun("Keterangan & Rollback Plan")],
+      })
+    );
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: "KETERANGAN:", bold: true })],
+      })
+    );
+    children.push(new Paragraph({ text: log.reason, spacing: { after: 200 } }));
+    children.push(
+      new Paragraph({
+        children: [new TextRun({ text: "ROLLBACK PLAN:", bold: true })],
+      })
+    );
+    children.push(new Paragraph({ text: log.rollbackPlan || "-" }));
+
+    // Section 4: Screenshots
+    if (log.screenshots.length > 0) {
+      children.push(
+        new Paragraph({
+          heading: HeadingLevel.HEADING_2,
+          spacing: { before: 300, after: 200 },
+          children: [new TextRun("Bukti Screenshot")],
+        })
+      );
+
+      for (const scr of log.screenshots) {
+        if (scr.mimeType === "application/pdf") continue;
+
+        const filePath = path.join(uploadBase, "screenshots", scr.filename);
+        try {
+          const buf = await fs.readFile(filePath);
+          const imageType =
+            scr.mimeType === "image/png"
+              ? "png"
+              : scr.mimeType === "image/jpeg"
+                ? "jpg"
+                : null;
+          if (!imageType) continue;
+
+          const { width: srcW, height: srcH } = getImageSize(buf);
+          let dispW = Math.min(500, srcW);
+          let dispH = Math.round((dispW * srcH) / srcW);
+          if (dispH > 350) {
+            dispH = 350;
+            dispW = Math.round((dispH * srcW) / srcH);
+          }
+
+          children.push(
+            new Paragraph({
+              spacing: { before: 200, after: 100 },
+              children: [
+                new TextRun({ text: `${scr.type} - ${scr.originalName}`, bold: true, size: 20 }),
+              ],
+            })
+          );
+          children.push(
+            new Paragraph({
+              spacing: { after: 200 },
+              children: [
+                new ImageRun({
+                  type: imageType,
+                  data: buf,
+                  transformation: { width: dispW, height: dispH },
+                }),
+              ],
+            })
+          );
+        } catch {
+          children.push(
+            new Paragraph({
+              text: `[Gambar tidak dapat ditampilkan: ${scr.originalName}]`,
+            })
+          );
+        }
+      }
+    }
+
+    const doc = new Document({
+      sections: [{ children }],
+      styles: {
+        default: {
+          document: {
+            run: { font: "Calibri", size: 21 },
+            paragraph: { spacing: { line: 276 } },
+          },
+        },
+      },
+    });
+
+    const buf = await Packer.toBuffer(doc);
+    const buffer = Buffer.from(buf);
+
+    await AuditTrailService.log({
+      userId,
+      action: "EXPORT_WORD",
+      entityType: "ChangeLog",
+      entityId: changeLogId,
+      metadata: { ticketId: log.ticketId },
+      ipAddress: requestInfo?.ipAddress,
+      userAgent: requestInfo?.userAgent,
+    });
+
+    return buffer;
+  }
+
   private static drawSectionTitle(
     doc: any,
     title: string,

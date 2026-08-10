@@ -624,6 +624,26 @@ function ChangeLogDetailDialog({
     }
   }
 
+  async function handleExportWord() {
+    try {
+      toast.info("Menyiapkan dokumen Word...");
+      const res = await fetch(`/api/export/word/${id}`);
+      if (!res.ok) throw new Error("Failed");
+      const blob = await res.blob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `${data?.ticketId || "change-log"}.docx`;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      toast.success("Dokumen Word berhasil diunduh");
+    } catch {
+      toast.error("Gagal export Word");
+    }
+  }
+
   return (
     <Dialog open onOpenChange={onClose}>
       <DialogContent className="max-w-[1400px] w-[min(1400px,96vw)] sm:max-w-[1400px] max-h-[92vh] overflow-y-auto">
@@ -640,6 +660,10 @@ function ChangeLogDetailDialog({
               <Button variant="outline" size="sm" onClick={handleExportPdf}>
                 <Download className="h-3.5 w-3.5 mr-1.5" />
                 Export PDF
+              </Button>
+              <Button variant="outline" size="sm" onClick={handleExportWord}>
+                <FileText className="h-3.5 w-3.5 mr-1.5" />
+                Export Word
               </Button>
             </div>
           </DialogTitle>
