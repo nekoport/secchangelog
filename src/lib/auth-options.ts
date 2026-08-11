@@ -16,7 +16,11 @@ import { authenticateLdap } from "@/lib/ldap";
 function getClientIpFromHeaders(headers?: Record<string, string | undefined>): string | null {
   if (!headers) return null;
   const xff = headers["x-forwarded-for"];
-  if (xff) return xff.split(",")[0].trim();
+  if (xff) {
+    // Caddy appends the real client IP last; take the last entry to avoid spoofing.
+    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
+  }
   return headers["x-real-ip"] || null;
 }
 

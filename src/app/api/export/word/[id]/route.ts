@@ -4,10 +4,13 @@ import {
   unauthorized,
   notFound,
   internalError,
+  tooManyRequests,
 } from "@/lib/security/api-response";
+import { setRateLimitHeaders } from "@/lib/security/api-response";
 import { ExportService } from "@/lib/services/export.service";
 import { SystemSettingService } from "@/lib/services/system-setting.service";
-import { getClientIp } from "@/lib/security/rate-limit";
+import { getClientIp, rateLimit, getRateLimitKey } from "@/lib/security/rate-limit";
+import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
 
 export async function GET(
@@ -19,7 +22,30 @@ export async function GET(
 
   const { id } = await params;
 
+  // Rate limit export (same as /api/export/excel)
+  const ip = getClientIp(req);
+  const rlKey = getRateLimitKey(ip, "export", session.user.id);
+  const rl = rateLimit(rlKey, { requests: 10, windowMs: 60 * 1000 });
+  if (!rl.allowed) {
+    return setRateLimitHeaders(tooManyRequests(), rl);
+  }
+
   try {
+    // Resolve ticket ID for filename without scanning the whole table
+    const log = await db.changeLog.findUnique({
+      where: { id },
+      select: { ticketId: true, isDeleted: true },
+    });
+    if (!log) return notFound("Change log tidak ditemukan");
+    // Prevent exporting soft-deleted logs for non-ADMIN/AUDITOR
+    if (
+      log.isDeleted &&
+      session.user.role !== "ADMIN" &&
+      session.user.role !== "AUDITOR"
+    ) {
+      return notFound("Change log tidak ditemukan");
+    }
+
     const systemName = await SystemSettingService.getSystemName();
     const logoPath = await SystemSettingService.getLogoPath();
 
@@ -29,15 +55,12 @@ export async function GET(
       systemName,
       logoPath || undefined,
       {
-        ipAddress: getClientIp(req),
+        ipAddress: ip,
         userAgent: req.headers.get("user-agent"),
       }
     );
 
-    // Get ticket ID for filename
-    const log = await ExportService.getFilteredChangeLogs({});
-    const item = log.find((l) => l.id === id);
-    const filename = item ? `${item.ticketId}.docx` : "change-log.docx";
+    const filename = `${log.ticketId}.docx`;
 
     return new NextResponse(new Uint8Array(buffer), {
       headers: {

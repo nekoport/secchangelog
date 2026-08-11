@@ -252,7 +252,7 @@ export class ChangeLogService {
 ```
 
 ### 4.4 File Storage Strategy
-- Lokasi: `public/uploads/` (di-set via env `UPLOAD_DIR`, default `/home/z/my-project/public/uploads`)
+- Lokasi: `public/uploads/` (di-set via env `UPLOAD_DIR`, default `./public/uploads` relatif ke project root)
 - Struktur: `screenshots/{uuid}.{ext}` (flat) dan `logos/system-logo.{ext}`
 - Validasi:
   - MIME type whitelist: `image/png`, `image/jpeg`, `image/webp`, `application/pdf`

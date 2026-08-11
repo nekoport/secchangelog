@@ -82,10 +82,14 @@ export function getRateLimitKey(
 }
 
 // Get client IP from request headers (handle proxy)
+// NOTE: Caddy appends the real client IP to X-Forwarded-For, so a client-supplied
+// value would appear BEFORE the trusted one (e.g. "spoofed, real.ip"). Using the
+// LAST entry prevents attackers from bypassing rate limits / spoofing audit IPs.
 export function getClientIp(request: Request): string {
   const xff = request.headers.get("x-forwarded-for");
   if (xff) {
-    return xff.split(",")[0].trim();
+    const parts = xff.split(",").map((p) => p.trim()).filter(Boolean);
+    if (parts.length > 0) return parts[parts.length - 1];
   }
   const xRealIp = request.headers.get("x-real-ip");
   if (xRealIp) return xRealIp;

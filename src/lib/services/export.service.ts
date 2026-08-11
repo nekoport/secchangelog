@@ -387,7 +387,8 @@ export class ExportService {
           let dispW: number | null = null;
           let dispH: number | null = null;
           const filePath = path.join(
-            process.env.UPLOAD_DIR || "/home/z/my-project/public/uploads",
+            process.env.UPLOAD_DIR ||
+              path.join(process.cwd(), "public", "uploads"),
             "screenshots",
             scr.filename
           );

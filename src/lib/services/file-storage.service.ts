@@ -11,7 +11,8 @@ import {
 import { AuditTrailService } from "./audit-trail.service";
 import type { ScreenshotType } from "@/lib/constants";
 
-const UPLOAD_BASE = process.env.UPLOAD_DIR || "/home/z/my-project/public/uploads";
+const UPLOAD_BASE =
+  process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
 const SCREENSHOTS_DIR = path.join(UPLOAD_BASE, "screenshots");
 const LOGOS_DIR = path.join(UPLOAD_BASE, "logos");
 const FAVICONS_DIR = path.join(UPLOAD_BASE, "favicons");
