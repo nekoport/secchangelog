@@ -7,7 +7,7 @@ export async function middleware(req: NextRequest) {
   const token = await getToken({
     req,
     secret: process.env.NEXTAUTH_SECRET,
-    cookieName: "next-auth.session-token",
+    cookieName: "__Host-next-auth.session-token",
     secureCookie: process.env.NODE_ENV === "production",
   });
 
