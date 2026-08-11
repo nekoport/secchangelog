@@ -125,6 +125,7 @@ Tim Cyber Security rutin melakukan perubahan konfigurasi pada berbagai perangkat
 - **FR-RPT-02**: Export detail single change log ke PDF (termasuk screenshot)
 - **FR-RPT-03**: Export monthly summary report ke PDF
 - **FR-RPT-04**: Export audit trail log ke Excel
+- **FR-RPT-05**: Export detail single change log ke Word (.docx) yang dapat diedit (termasuk screenshot)
 
 ---
 
@@ -180,7 +181,7 @@ Tim Cyber Security rutin melakukan perubahan konfigurasi pada berbagai perangkat
 | Auth | NextAuth.js v4 + bcrypt + LDAP custom provider | Flexible, secure |
 | File Storage | Local filesystem (`/uploads`, Docker volume) | Sesuai request, bisa di-upgrade ke S3 |
 | Charts | Recharts | React-native, responsive |
-| Export | `xlsx` (Excel) + `pdfkit` (PDF) | Tanpa dependency browser |
+| Export | `xlsx` (Excel) + `pdfkit` (PDF) + `docx` (Word) | Tanpa dependency browser |
 | Validation | Zod | Type-safe runtime validation |
 
 ---

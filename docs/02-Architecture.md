@@ -42,7 +42,7 @@ SecChangeLog menggunakan **monolithic Next.js 16 application** dengan App Router
 │  │  - /api/change-logs     (CRUD)                         │   │
 │  │  - /api/delete-requests (workflow)                     │   │
 │  │  - /api/upload          (file upload)                  │   │
-│  │  - /api/export          (Excel/PDF)                    │   │
+│  │  - /api/export          (Excel/PDF/Word)                │   │
 │  │  - /api/admin/*         (admin only)                   │   │
 │  └───────────────────────────────────────────────────────┘   │
 │  ┌───────────────────────────────────────────────────────┐   │
@@ -52,7 +52,7 @@ SecChangeLog menggunakan **monolithic Next.js 16 application** dengan App Router
 │  │  - DeleteRequestService                                │   │
 │  │  - AuditTrailService                                   │   │
 │  │  - FileStorageService (local FS, sanitized)            │   │
-│  │  - ExportService (Excel/PDF generation)                │   │
+│  │  - ExportService (Excel/PDF/Word generation)            │   │
 │  └───────────────────────────────────────────────────────┘   │
 └──────────────┬──────────────────┬─────────────────────────────┘
                │                  │
@@ -152,6 +152,7 @@ secchangelog/
 │   │       ├── health/route.ts
 │   │       ├── export/excel/route.ts
 │   │       ├── export/pdf/[id]/route.ts
+│   │       ├── export/word/[id]/route.ts
 │   │       ├── export/audit-trail/excel/route.ts
 │   │       └── admin/
 │   │           ├── device-types/route.ts
@@ -275,6 +276,7 @@ Setiap mutasi data menulis ke tabel `AuditTrail`:
 ### 4.6 Export Pipeline
 - **Excel**: gunakan `xlsx` library, generate in-memory, stream sebagai response
 - **PDF**: gunakan `pdfkit` (tanpa dependency browser) dengan layout custom (header, content, screenshot embedded)
+- **Word**: gunakan `docx` library, menghasilkan dokumen .docx yang dapat diedit di Microsoft Word (header, informasi perubahan, deskripsi, screenshot embedded)
 
 ---
 
@@ -484,5 +486,6 @@ Untuk MVP, single server sudah cukup. Jika butuh scale:
 | File Validation | custom (magic number) | multer | Magic number check + size limit |
 | Export Excel | xlsx (SheetJS) | exceljs | Lightweight, widely used |
 | Export PDF | pdfkit | puppeteer, jsPDF | No browser dependency, faster |
+| Export Word | docx | html-docx-js, officegen | Editable output (.docx), rich API |
 
 ---

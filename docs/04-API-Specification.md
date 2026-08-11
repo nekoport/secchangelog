@@ -628,6 +628,26 @@ Export single change log ke PDF.
 ### 10.3 GET `/api/export/audit-trail/excel`
 Export audit trail. **Supervisor+ only.**
 
+### 10.4 GET `/api/export/word/:id`
+Export single change log ke Word (.docx) yang dapat diedit.
+
+**Response 200:**
+- Content-Type: `application/vnd.openxmlformats-officedocument.wordprocessingml.document`
+- Content-Disposition: `attachment; filename="CHG-2026-0001.docx"`
+
+**Word Structure:**
+- Header: Logo, System name, Ticket ID
+- Section 1: Informasi Perubahan (device, type, PIC, date, requestor, creator)
+- Section 2: Deskripsi (before/after)
+- Section 3: Keterangan & Rollback Plan
+- Section 4: Screenshots (embedded images)
+- Generated timestamp (WIB)
+
+**Keterangan:**
+- Dokumen .docx dapat diedit langsung di Microsoft Word (berbeda dengan PDF yang read-only)
+- Waktu implementasi & generated menggunakan format WIB
+- Ekspor dicatat ke audit trail (action `EXPORT_WORD`)
+
 ---
 
 ## 11. Health Check

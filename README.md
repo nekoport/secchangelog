@@ -57,6 +57,7 @@
 ### Export & Reporting
 - ✅ Export Excel (.xlsx) dengan filter aktif — 2 sheet (data + summary)
 - ✅ Export PDF per change log — lengkap dengan screenshot embedded
+- ✅ Export Word (.docx) per change log — dapat diedit di Microsoft Word, lengkap dengan screenshot embedded
 - ✅ Audit trail lengkap untuk compliance (ISO 27001, PCI-DSS)
 
 ### Security (OWASP Top 10 Compliant)
@@ -94,7 +95,7 @@
 | ORM | Prisma 6 |
 | Auth | NextAuth.js v4 + bcrypt + LDAP-ready |
 | Charts | Recharts |
-| Export | xlsx (Excel) + pdfkit (PDF) |
+| Export | xlsx (Excel) + pdfkit (PDF) + docx (Word) |
 | Validation | Zod |
 | File Storage | Local filesystem |
 
