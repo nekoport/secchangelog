@@ -92,8 +92,6 @@ async function main() {
     let base = u.email.split("@")[0].replace(/[^a-zA-Z0-9._-]/g, "").toLowerCase() || "user";
     let candidate = base;
     let suffix = 1;
-    // Unique constraint check
-    // eslint-disable-next-line no-constant-condition
     while (true) {
       const clash = await db.user.findFirst({
         where: { username: candidate, NOT: { id: u.id } },

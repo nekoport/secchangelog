@@ -99,6 +99,8 @@ function SidebarContent({
       signOut({ redirect: false, callbackUrl: "/login" }).catch(() => {}),
       new Promise((resolve) => setTimeout(resolve, 2500)),
     ]).then(() => {
+      // Full page load so NextAuth session/cookies are fully cleared
+      // eslint-disable-next-line @next/next/no-location-assign-relative-destination
       window.location.assign("/login");
     });
   }
