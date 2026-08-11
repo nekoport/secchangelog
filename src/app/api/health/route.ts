@@ -20,12 +20,12 @@ export async function GET() {
       version: "1.0.0",
     });
   } catch (err) {
+    console.error("[API health]:", err);
     return Response.json(
       {
         status: "error",
         timestamp: new Date().toISOString(),
         db: "disconnected",
-        error: (err as Error).message,
       },
       { status: 503 }
     );

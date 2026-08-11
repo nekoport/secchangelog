@@ -10,10 +10,24 @@ import {
   apiError,
 } from "@/lib/security/api-response";
 import { AuditTrailService } from "@/lib/services/audit-trail.service";
+import {
+  getClientIp,
+  rateLimit,
+  getRateLimitKey,
+} from "@/lib/security/rate-limit";
+import { tooManyRequests, setRateLimitHeaders } from "@/lib/security/api-response";
 
 export async function POST(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized();
+
+  // Rate limit per user (10 / min)
+  const ip = getClientIp(req);
+  const rlKey = getRateLimitKey(ip, "change-password", session.user.id);
+  const rl = rateLimit(rlKey, { requests: 10, windowMs: 60 * 1000 });
+  if (!rl.allowed) {
+    return setRateLimitHeaders(tooManyRequests(), rl);
+  }
 
   let body: unknown;
   try {
