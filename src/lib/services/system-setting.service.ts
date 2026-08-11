@@ -1,5 +1,6 @@
 import { db } from "@/lib/db";
 import { DEFAULT_SETTINGS } from "@/lib/constants";
+import { decryptSecret } from "@/lib/security/ldap-crypto";
 
 export class SystemSettingService {
   private static cache: Map<string, string> | null = null;
@@ -99,7 +100,7 @@ export class SystemSettingService {
       enabled: all["ldap.enabled"] === "true",
       url: all["ldap.url"],
       bindDn: all["ldap.bindDn"],
-      bindPassword: all["ldap.bindPassword"], // already decrypted at write time
+      bindPassword: decryptSecret(all["ldap.bindPassword"]),
       searchBase: all["ldap.searchBase"],
       searchFilter: all["ldap.searchFilter"],
     };

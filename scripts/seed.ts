@@ -56,7 +56,7 @@ async function main() {
   // 2. Seed default admin user
   const adminEmail = process.env.SEED_ADMIN_EMAIL || "admin@secchangelog.local";
   const adminUsername = process.env.SEED_ADMIN_USERNAME || "admin";
-  const adminPassword = process.env.SEED_ADMIN_PASSWORD || "Admin@12345";
+  const adminPassword = process.env.SEED_ADMIN_PASSWORD;
   const adminName = process.env.SEED_ADMIN_NAME || "Administrator";
 
   const existingAdmin = await db.user.findUnique({
@@ -64,6 +64,12 @@ async function main() {
   });
 
   if (!existingAdmin) {
+    // Fail-closed: never create an admin with a default/guessed password.
+    if (!adminPassword || adminPassword.length < 10) {
+      throw new Error(
+        "SEED_ADMIN_PASSWORD wajib di-set (minimal 10 karakter) untuk membuat admin pertama."
+      );
+    }
     const passwordHash = await bcrypt.hash(adminPassword, 12);
     await db.user.create({
       data: {
@@ -77,7 +83,7 @@ async function main() {
     });
     console.log(`✓ Created admin user: ${adminEmail}`);
     console.log(`  Username: ${adminUsername}`);
-    console.log(`  Password: ${adminPassword}`);
+    console.log(`  ⚠️  Password diambil dari env SEED_ADMIN_PASSWORD`);
     console.log(`  ⚠️  Ganti password setelah login pertama!`);
   } else {
     console.log(`✓ Admin user already exists: ${adminEmail}`);

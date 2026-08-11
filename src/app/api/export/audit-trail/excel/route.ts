@@ -48,7 +48,7 @@ export async function GET(req: Request) {
       userAgent: req.headers.get("user-agent"),
     });
 
-    const XLSX = await import("xlsx");
+    const XLSX = await import("@e965/xlsx");
 
     const sheetData = items.map((item) => ({
       "Timestamp": new Date(item.timestamp).toISOString().replace("T", " ").slice(0, 19),

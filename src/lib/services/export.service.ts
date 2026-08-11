@@ -126,7 +126,7 @@ export class ExportService {
     userId: string,
     requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
   ): Promise<Buffer> {
-    const XLSX = await import("xlsx");
+    const XLSX = await import("@e965/xlsx");
 
     const items = await this.getFilteredChangeLogs(filters);
 

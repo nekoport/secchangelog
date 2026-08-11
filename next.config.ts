@@ -33,6 +33,20 @@ const nextConfig: NextConfig = {
             key: "X-DNS-Prefetch-Control",
             value: "on",
           },
+          {
+            key: "Content-Security-Policy",
+            value:
+              "default-src 'self'; " +
+              "script-src 'self' 'unsafe-inline'; " +
+              "style-src 'self' 'unsafe-inline'; " +
+              "img-src 'self' data: blob:; " +
+              "font-src 'self'; " +
+              "connect-src 'self'; " +
+              "frame-ancestors 'none'; " +
+              "base-uri 'self'; " +
+              "form-action 'self'; " +
+              "object-src 'none'",
+          },
         ],
       },
       {
@@ -40,6 +54,10 @@ const nextConfig: NextConfig = {
         headers: [
           { key: "X-Content-Type-Options", value: "nosniff" },
           { key: "X-Frame-Options", value: "DENY" },
+          {
+            key: "Content-Security-Policy",
+            value: "default-src 'none'; frame-ancestors 'none'; object-src 'none'",
+          },
         ],
       },
     ];

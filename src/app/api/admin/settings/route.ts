@@ -11,6 +11,7 @@ import { updateSettingsSchema } from "@/lib/validations/settings";
 import { SystemSettingService } from "@/lib/services/system-setting.service";
 import { AuditTrailService } from "@/lib/services/audit-trail.service";
 import { getClientIp } from "@/lib/security/rate-limit";
+import { encryptSecret, isLdapEncryptionConfigured } from "@/lib/security/ldap-crypto";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -81,6 +82,23 @@ export async function PATCH(req: Request) {
   // Only update non-empty password
   if (data["ldap.bindPassword"] === "") {
     delete data["ldap.bindPassword"];
+  }
+
+  // Encrypt LDAP bind password before storing
+  if (data["ldap.bindPassword"]) {
+    if (!isLdapEncryptionConfigured()) {
+      return Response.json(
+        {
+          error: {
+            code: "CONFIG_ERROR",
+            message:
+              "LDAP_ENCRYPTION_KEY belum dikonfigurasi di server. Bind password LDAP tidak dapat disimpan.",
+          },
+        },
+        { status: 500 }
+      );
+    }
+    data["ldap.bindPassword"] = encryptSecret(data["ldap.bindPassword"]);
   }
 
   if (Object.keys(data).length === 0) {
