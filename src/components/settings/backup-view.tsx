@@ -88,12 +88,11 @@ export function BackupView() {
     }
   }
 
-  async function handleDownload(b: BackupMeta) {
-    try {
-      window.location.href = `/api/admin/backups/${encodeURIComponent(b.filename)}`;
-    } catch {
-      // location.href download can't throw; kept for defensive clarity
-    }
+  function handleDownload(b: BackupMeta) {
+    const a = document.createElement("a");
+    a.href = `/api/admin/backups/${encodeURIComponent(b.filename)}`;
+    a.download = b.filename;
+    a.click();
   }
 
   async function handleDelete(b: BackupMeta) {
