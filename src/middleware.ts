@@ -23,6 +23,18 @@ export async function middleware(req: NextRequest) {
 
   // If no token, redirect to login
   if (!token) {
+    // API routes should return 401 JSON instead of a redirect
+    if (pathname.startsWith("/api/")) {
+      return NextResponse.json(
+        {
+          error: {
+            code: "UNAUTHORIZED",
+            message: "Authentication required",
+          },
+        },
+        { status: 401 }
+      );
+    }
     const loginUrl = new URL("/login", req.url);
     loginUrl.searchParams.set("callbackUrl", pathname);
     return NextResponse.redirect(loginUrl);
