@@ -91,6 +91,9 @@ export const AUDIT_ACTIONS = {
   CHANGE_THEME: "CHANGE_THEME",
   NTP_SYNC: "NTP_SYNC",
   UPDATE_NTP_SETTING: "UPDATE_NTP_SETTING",
+  CREATE_DATABASE_BACKUP: "CREATE_DATABASE_BACKUP",
+  DOWNLOAD_DATABASE_BACKUP: "DOWNLOAD_DATABASE_BACKUP",
+  DELETE_DATABASE_BACKUP: "DELETE_DATABASE_BACKUP",
 } as const;
 
 export type AuditAction = keyof typeof AUDIT_ACTIONS;
@@ -125,6 +128,9 @@ export const LOCKOUT_DURATION_MS = 15 * 60 * 1000; // 15 min
 
 // Session
 export const SESSION_MAX_AGE_HOURS = 8;
+
+// Backup database
+export const MAX_BACKUP_RETENTION = 30;
 
 // Default device types (general categories)
 export const DEFAULT_DEVICE_TYPES = [

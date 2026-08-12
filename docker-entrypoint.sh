@@ -6,6 +6,9 @@ mkdir -p /app/public/uploads/screenshots
 mkdir -p /app/public/uploads/logos
 mkdir -p /app/public/uploads/favicons
 
+echo "[secchangelog] Ensuring backup directory..."
+mkdir -p "${BACKUP_DIR:-/app/data/backups}"
+
 echo "[secchangelog] Applying database schema (prisma db push)..."
 cd /app
 bun run db:push

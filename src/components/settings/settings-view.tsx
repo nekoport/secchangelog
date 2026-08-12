@@ -37,6 +37,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
+import { BackupView } from "@/components/settings/backup-view";
 import {
   Upload,
   Plus,
@@ -51,6 +52,7 @@ import {
   RefreshCw,
   CheckCircle2,
   AlertTriangle,
+  Database,
 } from "lucide-react";
 import { toast } from "sonner";
 import { useSystemSettings } from "@/hooks/use-system-settings";
@@ -83,7 +85,7 @@ export function SettingsView() {
   const qc = useQueryClient();
   const { settings, isLoading: settingsLoading } = useSystemSettings();
   const [tab, setTab] = useState<
-    "general" | "device-types" | "ldap" | "password" | "ntp"
+    "general" | "device-types" | "ldap" | "password" | "ntp" | "backup"
   >("general");
 
   // General settings
@@ -539,6 +541,7 @@ export function SettingsView() {
     { id: "ldap", label: "LDAP", icon: Shield },
     { id: "password", label: "Password Policy", icon: Shield },
     { id: "ntp", label: "NTP", icon: Clock },
+    { id: "backup", label: "Backup", icon: Database },
   ] as const;
 
   return (
@@ -1225,6 +1228,9 @@ export function SettingsView() {
           </Card>
         </div>
       )}
+
+      {/* Backup Tab */}
+      {tab === "backup" && <BackupView />}
 
       {/* Create Device Type Dialog */}
       <Dialog open={showCreateDevice} onOpenChange={setShowCreateDevice}>

@@ -341,6 +341,14 @@ export class AuditTrailService {
       }
       case "UPDATE_NTP_SETTING":
         return "Update setting: ntp";
+      case "CREATE_DATABASE_BACKUP":
+        return fmt(m.filename)
+          ? `Membuat backup database (${fmt(m.filename)})`
+          : "Membuat backup database";
+      case "DOWNLOAD_DATABASE_BACKUP":
+        return `Download backup database (${fmt(m.filename)})`;
+      case "DELETE_DATABASE_BACKUP":
+        return `Menghapus backup database (${fmt(m.filename)})`;
       default:
         return action;
     }
