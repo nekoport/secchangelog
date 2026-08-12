@@ -74,6 +74,7 @@ export class ChangeLogService {
           picId: userId, // PIC is the creator by default
           rollbackPlan: input.rollbackPlan || null,
           implementedAt,
+          status: "IMPLEMENTED",
           createdById: userId,
         },
       });
@@ -115,6 +116,7 @@ export class ChangeLogService {
     riskLevel?: string;
     picId?: string;
     changeType?: string;
+    status?: string;
     from?: Date;
     to?: Date;
     includeDeleted?: boolean;
@@ -130,6 +132,7 @@ export class ChangeLogService {
       riskLevel,
       picId,
       changeType,
+      status,
       from,
       to,
       includeDeleted = false,
@@ -163,6 +166,7 @@ export class ChangeLogService {
     if (riskLevel) where.riskLevel = riskLevel;
     if (picId) where.picId = picId;
     if (changeType) where.changeType = changeType;
+    if (status) where.status = status;
 
     if (from || to) {
       const dateFilter: Record<string, Date> = {};
@@ -196,6 +200,7 @@ export class ChangeLogService {
           deviceType: { select: { id: true, name: true } },
           pic: { select: { id: true, name: true } },
           creator: { select: { id: true, name: true } },
+          verifiedBy: { select: { id: true, name: true } },
           _count: { select: { screenshots: true } },
         },
         orderBy,
@@ -223,6 +228,7 @@ export class ChangeLogService {
         deviceType: { select: { id: true, name: true } },
         pic: { select: { id: true, name: true } },
         creator: { select: { id: true, name: true } },
+        verifiedBy: { select: { id: true, name: true } },
         screenshots: options?.includeScreenshots
           ? {
               select: {
@@ -256,11 +262,25 @@ export class ChangeLogService {
     id: string,
     input: UpdateChangeLogInput,
     userId: string,
-    requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
+    requestInfo?: {
+      ipAddress?: string | null;
+      userAgent?: string | null;
+      currentUserRole?: string;
+    }
   ) {
     const existing = await db.changeLog.findUnique({ where: { id } });
     if (!existing) {
       throw new Error("NOT_FOUND");
+    }
+    if (existing.isDeleted) {
+      throw new Error("NOT_FOUND");
+    }
+
+    // Verified change logs are locked for editing except for Admin.
+    // While DRAFT or IMPLEMENTED, authorized users may still update the record.
+    const isAdmin = requestInfo?.currentUserRole === "ADMIN";
+    if (existing.status === "VERIFIED" && !isAdmin) {
+      throw new Error("LOGGED_VERIFIED");
     }
 
     const updateData: Record<string, unknown> = {};
@@ -353,6 +373,46 @@ export class ChangeLogService {
     return updated;
   }
 
+  static async verify(
+    id: string,
+    userId: string,
+    requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
+  ) {
+    const existing = await db.changeLog.findUnique({ where: { id } });
+    if (!existing) {
+      throw new Error("NOT_FOUND");
+    }
+    if (existing.isDeleted) {
+      throw new Error("NOT_FOUND");
+    }
+
+    if (existing.status === "VERIFIED") {
+      // Idempotent: already verified, return as-is
+      return existing;
+    }
+
+    const updated = await db.changeLog.update({
+      where: { id },
+      data: {
+        status: "VERIFIED",
+        verifiedAt: new Date(),
+        verifiedById: userId,
+      },
+    });
+
+    await AuditTrailService.log({
+      userId,
+      action: "VERIFY_CHANGE_LOG",
+      entityType: "ChangeLog",
+      entityId: id,
+      metadata: { ticketId: updated.ticketId, status: updated.status },
+      ipAddress: requestInfo?.ipAddress,
+      userAgent: requestInfo?.userAgent,
+    });
+
+    return updated;
+  }
+
   static async restore(
     id: string,
     userId: string,
@@ -389,6 +449,7 @@ export class ChangeLogService {
       byPic,
       last30Days,
       pendingDeleteCount,
+      byStatus,
     ] = await Promise.all([
       db.changeLog.count({ where: { isDeleted: false } }),
       db.changeLog.count({
@@ -434,6 +495,11 @@ export class ChangeLogService {
         select: { implementedAt: true },
       }),
       db.deleteRequest.count({ where: { status: "PENDING" } }),
+      db.changeLog.groupBy({
+        by: ["status"],
+        where: { isDeleted: false },
+        _count: true,
+      }),
     ]);
 
     // Enrich byDeviceType with names
@@ -485,12 +551,21 @@ export class ChangeLogService {
     };
     for (const b of byRiskLevel) riskLevelMap[b.riskLevel] = b._count;
 
+    // Format byStatus as object
+    const statusMap: Record<string, number> = {
+      DRAFT: 0,
+      IMPLEMENTED: 0,
+      VERIFIED: 0,
+    };
+    for (const b of byStatus) statusMap[b.status] = b._count;
+
     return {
       totalChangeLogs: total,
       thisMonth,
       lastMonth,
       byDeviceType: byDeviceTypeWithNames,
       byRiskLevel: riskLevelMap,
+      byStatus: statusMap,
       byPic: byPicWithNames,
       trend30Days,
       pendingDeleteRequests: pendingDeleteCount,

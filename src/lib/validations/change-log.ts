@@ -70,6 +70,7 @@ export const listChangeLogsQuerySchema = z.object({
   riskLevel: z.string().optional(),
   picId: z.string().optional(),
   changeType: z.string().optional(),
+  status: z.string().optional(),
   from: z.string().optional(),
   to: z.string().optional(),
   includeDeleted: z.coerce.boolean().default(false),
