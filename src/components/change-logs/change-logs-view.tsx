@@ -41,12 +41,10 @@ import {
   Trash2,
   AlertTriangle,
   Edit,
-  ShieldCheck,
 } from "lucide-react";
 import { toast } from "sonner";
 import {
   CHANGE_TYPES,
-  CHANGE_LOG_STATUS,
 } from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
@@ -74,21 +72,12 @@ interface ChangeLog {
   requestor: string | null;
   changeType: string;
   riskLevel: string;
-  status?: string;
-  verifiedAt?: string | null;
-  verifiedBy?: { id: string; name: string } | null;
   pic: { id: string; name: string };
   implementedAt: string;
   createdAt: string;
   _count?: { screenshots: number };
   isDeleted?: boolean;
 }
-
-const STATUS_LABELS: Record<string, string> = {
-  DRAFT: "DRAFT",
-  IMPLEMENTED: "IMPLEMENTED",
-  VERIFIED: "VERIFIED",
-};
 
 export function ChangeLogsView({
   onNavigate,
@@ -101,7 +90,6 @@ export function ChangeLogsView({
   const [search, setSearch] = useState("");
   const [deviceTypeId, setDeviceTypeId] = useState("");
   const [changeType, setChangeType] = useState("");
-  const [status, setStatus] = useState("");
   const [from, setFrom] = useState("");
   const [to, setTo] = useState("");
   const [includeDeleted, setIncludeDeleted] = useState(false);
@@ -118,7 +106,6 @@ export function ChangeLogsView({
   if (search) params.set("search", search);
   if (deviceTypeId) params.set("deviceTypeId", deviceTypeId);
   if (changeType) params.set("changeType", changeType);
-  if (status) params.set("status", status);
   if (from) params.set("from", new Date(from).toISOString());
   if (to) params.set("to", new Date(to).toISOString());
   if (includeDeleted && (session?.user?.role === "ADMIN" || session?.user?.role === "AUDITOR")) {
@@ -174,23 +161,6 @@ export function ChangeLogsView({
     }
   }
 
-  async function handleVerify(log: ChangeLog) {
-    try {
-      const res = await fetch(`/api/change-logs/${log.id}/verify`, {
-        method: "POST",
-      });
-      if (!res.ok) {
-        const err = await res.json().catch(() => null);
-        throw new Error(err?.error?.message || "Gagal verifikasi");
-      }
-      toast.success(`${log.ticketId} berhasil diverifikasi`);
-      qc.invalidateQueries({ queryKey: ["change-logs"] });
-      qc.invalidateQueries({ queryKey: ["dashboard-stats"] });
-    } catch (err) {
-      toast.error((err as Error).message);
-    }
-  }
-
   async function handleSubmitDeleteRequest() {
     if (!deleteTarget || !deleteReason.trim()) return;
     setSubmittingDelete(true);
@@ -228,26 +198,10 @@ export function ChangeLogsView({
   };
 
   const canEdit = (log: ChangeLog) => {
-    // Only Admin can edit VERIFIED records; otherwise any authenticated user
+    // Any authenticated user can edit any log (recorded in audit trail)
     if (!session?.user) return false;
     if (log.isDeleted) return false;
-    if (log.status === "VERIFIED" && session.user.role !== "ADMIN") return false;
     return true;
-  };
-
-  const canVerify = (log: ChangeLog) => {
-    // Supervisor, Admin, Auditor can verify (IMPLEMENTED -> VERIFIED)
-    if (!session?.user) return false;
-    if (log.isDeleted) return false;
-    if (log.status === "VERIFIED") return false;
-    return canVerifyRole(session);
-  };
-
-  const canVerifyRole = (
-    s: typeof session
-  ): boolean => {
-    if (!s?.user) return false;
-    return ["SUPERVISOR", "ADMIN", "AUDITOR"].includes(s.user.role);
   };
 
   return (
@@ -320,25 +274,6 @@ export function ChangeLogsView({
                 ))}
               </SelectContent>
             </Select>
-            <Select
-              value={status || "all"}
-              onValueChange={(v) => {
-                setStatus(v === "all" ? "" : v);
-                setPage(1);
-              }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Status" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Status</SelectItem>
-                {Object.values(CHANGE_LOG_STATUS).map((s) => (
-                  <SelectItem key={s} value={s}>
-                    {STATUS_LABELS[s] || s}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
           </div>
 
           <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">
@@ -370,7 +305,7 @@ export function ChangeLogsView({
                 className="text-xs"
               />
             </div>
-            {(from || to || search || deviceTypeId || changeType || status) && (
+            {(from || to || search || deviceTypeId || changeType) && (
               <div className="flex items-end">
                 <Button
                   type="button"
@@ -381,7 +316,6 @@ export function ChangeLogsView({
                     setSearch("");
                     setDeviceTypeId("");
                     setChangeType("");
-                    setStatus("");
                     setFrom("");
                     setTo("");
                     setPage(1);
@@ -426,7 +360,6 @@ export function ChangeLogsView({
                   <TableHead>IP</TableHead>
                   <TableHead>Pemohon</TableHead>
                   <TableHead>Tipe</TableHead>
-                  <TableHead>Status</TableHead>
                   <TableHead>PIC</TableHead>
                   <TableHead>Tanggal</TableHead>
                   <TableHead className="text-right">Aksi</TableHead>
@@ -436,7 +369,7 @@ export function ChangeLogsView({
                 {isLoading ? (
                   [...Array(5)].map((_, i) => (
                     <TableRow key={i}>
-                      {[...Array(9)].map((_, j) => (
+                      {[...Array(8)].map((_, j) => (
                         <TableCell key={j}>
                           <Skeleton className="h-5 w-full" />
                         </TableCell>
@@ -488,22 +421,6 @@ export function ChangeLogsView({
                           {log.changeType}
                         </Badge>
                       </TableCell>
-                      <TableCell>
-                        <Badge
-                          variant={
-                            log.status === "VERIFIED" ? "default" : "outline"
-                          }
-                          className={cn(
-                            "text-[10px]",
-                            log.status === "VERIFIED" &&
-                              "bg-emerald-600/15 text-emerald-600 border-emerald-600/40"
-                          )}
-                        >
-                          {STATUS_LABELS[log.status || "IMPLEMENTED"] ||
-                            log.status ||
-                            "IMPLEMENTED"}
-                        </Badge>
-                      </TableCell>
                       <TableCell className="text-xs">{log.pic.name}</TableCell>
                       <TableCell className="text-xs text-muted-foreground">
                         {new Date(log.implementedAt).toLocaleDateString("id-ID", {
@@ -523,17 +440,6 @@ export function ChangeLogsView({
                           >
                             <Eye className="h-3.5 w-3.5" />
                           </Button>
-                          {canVerify(log) && (
-                            <Button
-                              variant="ghost"
-                              size="icon"
-                              className="h-8 w-8 text-emerald-600 hover:text-emerald-600"
-                              onClick={() => handleVerify(log)}
-                              title="Verifikasi"
-                            >
-                              <ShieldCheck className="h-3.5 w-3.5" />
-                            </Button>
-                          )}
                           {canEdit(log) && (
                             <Button
                               variant="ghost"
@@ -612,8 +518,6 @@ export function ChangeLogsView({
             onNavigate("edit-log", targetId);
           }}
           canEditFlag={!!session?.user}
-          canVerifyFlag={canVerifyRole(session)}
-          onVerify={handleVerify}
         />
       )}
 
@@ -684,15 +588,11 @@ function ChangeLogDetailDialog({
   onClose,
   onEdit,
   canEditFlag,
-  canVerifyFlag,
-  onVerify,
 }: {
   id: string;
   onClose: () => void;
   onEdit: () => void;
   canEditFlag: boolean;
-  canVerifyFlag: boolean;
-  onVerify: (log: ChangeLog) => void;
 }) {
   const { data, isLoading } = useQuery({
     queryKey: ["change-log", id],
@@ -751,17 +651,6 @@ function ChangeLogDetailDialog({
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>Detail Change Log</span>
             <div className="flex gap-2">
-              {canVerifyFlag && data?.status !== "VERIFIED" && !data?.isDeleted && (
-                <Button
-                  variant="outline"
-                  size="sm"
-                  className="text-emerald-600 border-emerald-600/40 hover:text-emerald-600"
-                  onClick={() => onVerify(data)}
-                >
-                  <ShieldCheck className="h-3.5 w-3.5 mr-1.5" />
-                  Verify
-                </Button>
-              )}
               {canEditFlag && (
                 <Button variant="outline" size="sm" onClick={onEdit}>
                   <Edit className="h-3.5 w-3.5 mr-1.5" />
@@ -791,20 +680,6 @@ function ChangeLogDetailDialog({
               <span className="font-mono text-base font-bold">
                 {data.ticketId}
               </span>
-              <Badge
-                variant={
-                  data.status === "VERIFIED" ? "default" : "outline"
-                }
-                className={cn(
-                  "text-[10px]",
-                  data.status === "VERIFIED" &&
-                    "bg-emerald-600/15 text-emerald-600 border-emerald-600/40"
-                )}
-              >
-                {STATUS_LABELS[data.status || "IMPLEMENTED"] ||
-                  data.status ||
-                  "IMPLEMENTED"}
-              </Badge>
             </div>
 
             <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-muted/30 rounded-md">
@@ -852,20 +727,6 @@ function ChangeLogDetailDialog({
                 </p>
                 <p>{data.creator.name}</p>
               </div>
-              {data.status === "VERIFIED" && data.verifiedAt && (
-                <div>
-                  <p className="text-[10px] uppercase text-muted-foreground">
-                    Diverifikasi
-                  </p>
-                  <p>
-                    {data.verifiedBy?.name || "-"}
-                    <span className="text-muted-foreground">
-                      {" "}
-                      · {new Date(data.verifiedAt).toLocaleString("id-ID")}
-                    </span>
-                  </p>
-                </div>
-              )}
             </div>
 
             <div>

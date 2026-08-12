@@ -263,8 +263,6 @@ export class AuditTrailService {
         return `Lihat change log${suffix}`;
       case "UPDATE_CHANGE_LOG":
         return `Update change log${suffix}`;
-      case "VERIFY_CHANGE_LOG":
-        return `Verifikasi change log${suffix}`;
       case "CREATE_DELETE_REQUEST":
         return `Ajukan hapus${suffix}`;
       case "APPROVE_DELETE_REQUEST":

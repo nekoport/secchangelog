@@ -61,20 +61,12 @@ export async function PATCH(
       {
         ipAddress: getClientIp(req),
         userAgent: req.headers.get("user-agent"),
-        currentUserRole: session.user.role,
       }
     );
     return apiSuccess(updated);
   } catch (err) {
     const msg = (err as Error).message;
     if (msg === "NOT_FOUND") return notFound();
-    if (msg === "LOGGED_VERIFIED") {
-      return apiError(
-        "LOGGED_VERIFIED",
-        "Change log sudah diverifikasi dan terkunci. Hanya Admin yang bisa mengubahnya.",
-        403
-      );
-    }
     console.error("[API change-logs/[id] PATCH]:", err);
     return internalError();
   }

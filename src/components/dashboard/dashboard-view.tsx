@@ -36,7 +36,6 @@ interface DashboardStats {
   lastMonth: number;
   byDeviceType: Array<{ deviceType: string; count: number }>;
   byRiskLevel: Record<string, number>;
-  byStatus: Record<string, number>;
   byPic: Array<{ user: { id: string; name: string }; count: number }>;
   trend30Days: Array<{ date: string; count: number }>;
   pendingDeleteRequests: number;
@@ -56,7 +55,6 @@ const ACTION_LABELS: Record<string, string> = {
   LOGOUT: "Logout",
   CREATE_CHANGE_LOG: "Membuat change log",
   UPDATE_CHANGE_LOG: "Update change log",
-  VERIFY_CHANGE_LOG: "Verifikasi change log",
   CREATE_DELETE_REQUEST: "Mengajukan hapus",
   APPROVE_DELETE_REQUEST: "Approve hapus",
   REJECT_DELETE_REQUEST: "Reject hapus",
@@ -199,28 +197,6 @@ export function DashboardView({
           variant={data.pendingDeleteRequests > 0 ? "critical" : "default"}
         />
       </div>
-
-      {/* Status breakdown */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-base">Status Change Log</CardTitle>
-          <CardDescription>Distribusi status verifikasi</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-3 gap-4">
-            {(["DRAFT", "IMPLEMENTED", "VERIFIED"] as const).map((s) => (
-              <div key={s} className="text-center">
-                <p className="text-2xl font-bold tabular-nums">
-                  {data.byStatus?.[s] ?? 0}
-                </p>
-                <p className="text-[10px] uppercase text-muted-foreground tracking-wider">
-                  {s}
-                </p>
-              </div>
-            ))}
-          </div>
-        </CardContent>
-      </Card>
 
       {/* Charts */}
       <div className="grid grid-cols-1 gap-4">

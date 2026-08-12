@@ -41,7 +41,6 @@ model User {
   sessions        Session[]
   changeLogsPic       ChangeLog[]    @relation("ChangeLogPic")
   changeLogsCreator   ChangeLog[]    @relation("ChangeLogCreator")
-  changeLogsVerified  ChangeLog[]    @relation("ChangeLogVerifiedBy")
   deleteRequestsRequested DeleteRequest[] @relation("DeleteRequestRequested")
   deleteRequestsApproved  DeleteRequest[] @relation("DeleteRequestApproved")
   auditTrails     AuditTrail[]
@@ -141,10 +140,6 @@ model ChangeLog {
   rollbackPlan      String?
   implementedAt     DateTime
 
-  status            String   @default("IMPLEMENTED") // DRAFT | IMPLEMENTED | VERIFIED
-  verifiedAt        DateTime?
-  verifiedById      String?
-
   isDeleted         Boolean  @default(false)
   deletedAt         DateTime?
 
@@ -157,7 +152,6 @@ deviceType         DeviceType     @relation(fields: [deviceTypeId], references: 
   device             Device?        @relation(fields: [deviceId], references: [id], onDelete: SetNull)
   pic                User           @relation("ChangeLogPic", fields: [picId], references: [id])
   creator            User           @relation("ChangeLogCreator", fields: [createdById], references: [id])
-  verifiedBy         User?          @relation("ChangeLogVerifiedBy", fields: [verifiedById], references: [id])
   screenshots        Screenshot[]
   deleteRequests     DeleteRequest[]
 
@@ -166,7 +160,6 @@ deviceType         DeviceType     @relation(fields: [deviceTypeId], references: 
   @@index([picId])
   @@index([isDeleted])
   @@index([implementedAt])
-  @@index([status])
   @@index([createdById])
 }
 

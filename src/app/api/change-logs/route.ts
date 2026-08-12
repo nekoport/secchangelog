@@ -34,7 +34,6 @@ export async function GET(req: Request) {
       riskLevel: parsed.data.riskLevel,
       picId: parsed.data.picId,
       changeType: parsed.data.changeType,
-      status: parsed.data.status,
       from: parsed.data.from ? new Date(parsed.data.from) : undefined,
       to: parsed.data.to ? new Date(parsed.data.to) : undefined,
       includeDeleted:
