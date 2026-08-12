@@ -88,7 +88,6 @@ export function SettingsView() {
 
   // General settings
   const [systemName, setSystemName] = useState("");
-  const [defaultTheme, setDefaultTheme] = useState<"light" | "dark">("dark");
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
@@ -152,7 +151,6 @@ export function SettingsView() {
     // Hydrate form state once from the latest loaded settings.
     queueMicrotask(() => {
       setSystemName(settings["system.name"] || "SecChangeLog");
-      setDefaultTheme(settings["system.defaultTheme"] === "light" ? "light" : "dark");
       setLdapEnabled(settings["ldap.enabled"] === "true");
       setLdapUrl(settings["ldap.url"] || "");
       setLdapBindDn(settings["ldap.bindDn"] || "");
@@ -201,7 +199,6 @@ export function SettingsView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           "system.name": systemName,
-          "system.defaultTheme": defaultTheme,
         }),
       });
       if (!res.ok) throw new Error("Gagal");
@@ -581,7 +578,7 @@ export function SettingsView() {
             <CardHeader>
               <CardTitle className="text-base">Identitas Sistem</CardTitle>
               <CardDescription>
-                Nama sistem & tema default
+                Nama sistem
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
@@ -593,27 +590,6 @@ export function SettingsView() {
                   onChange={(e) => setSystemName(e.target.value)}
                   placeholder="SecChangeLog"
                 />
-              </div>
-              <div className="space-y-2">
-                <Label htmlFor="defaultTheme">Tema Default</Label>
-                <Select
-                  value={defaultTheme}
-                  onValueChange={(v) =>
-                    setDefaultTheme(v === "light" ? "light" : "dark")
-                  }
-                >
-                  <SelectTrigger id="defaultTheme" className="w-full">
-                    <SelectValue placeholder="Pilih tema" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="dark">Gelap (dark)</SelectItem>
-                    <SelectItem value="light">Terang (light)</SelectItem>
-                  </SelectContent>
-                </Select>
-                <p className="text-[10px] text-muted-foreground">
-                  Tema default untuk seluruh user saat pertama kali membuka
-                  aplikasi.
-                </p>
               </div>
               <Button onClick={handleSaveGeneral} disabled={savingGeneral}>
                 {savingGeneral ? (
