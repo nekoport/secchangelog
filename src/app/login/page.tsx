@@ -17,6 +17,21 @@ import {
 import { ShieldCheck, AlertCircle, Loader2 } from "lucide-react";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 
+const LOGIN_ERROR_MESSAGES: Record<string, string> = {
+  CredentialsSignin: "Email / username atau password salah.",
+  AccessDenied: "Akses ditolak.",
+  Default: "Terjadi kesalahan saat login. Coba lagi.",
+};
+
+function friendlyLoginError(code: string): string {
+  if (code && LOGIN_ERROR_MESSAGES[code]) return LOGIN_ERROR_MESSAGES[code];
+  // Some providers pass through the raw thrown message (e.g. account locked)
+  if (!code || code === "CredentialsSignin") {
+    return LOGIN_ERROR_MESSAGES.CredentialsSignin;
+  }
+  return LOGIN_ERROR_MESSAGES.Default;
+}
+
 function LoginForm() {
   const router = useRouter();
   const { data: session, status } = useSession();
@@ -54,7 +69,7 @@ function LoginForm() {
       });
 
       if (result?.error) {
-        setError(result.error);
+        setError(friendlyLoginError(result.error));
       } else if (result?.ok) {
         router.replace("/");
         router.refresh();
