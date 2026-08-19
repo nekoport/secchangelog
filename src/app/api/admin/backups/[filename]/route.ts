@@ -51,6 +51,54 @@ export async function GET(
   });
 }
 
+export async function POST(
+  req: Request,
+  { params }: { params: Promise<{ filename: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user) return unauthorized();
+  if (session.user.role !== "ADMIN") {
+    return forbidden("Hanya Admin yang bisa akses");
+  }
+
+  const { filename } = await params;
+
+  try {
+    const { safetyBackup } = await BackupService.prepareRestore(
+      filename,
+      session.user.id,
+      {
+        ipAddress: getClientIp(req),
+        userAgent: req.headers.get("user-agent"),
+      }
+    );
+
+    // The restore is applied on the next container start. Exit the process so
+    // the container's `restart: unless-stopped` policy reboots it and the
+    // entrypoint swaps the database while it is still closed.
+    setTimeout(() => {
+      process.exit(0);
+    }, 1500);
+
+    return apiSuccess({
+      scheduled: true,
+      filename,
+      safetyBackup,
+      message:
+        "Restore dijadwalkan. Aplikasi akan restart otomatis dan data dipulihkan. Tunggu beberapa saat, lalu muat ulang halaman.",
+    });
+  } catch (err) {
+    if (err instanceof Error && err.message === "NOT_FOUND") {
+      return notFound("Backup tidak ditemukan");
+    }
+    if (err instanceof Error && err.message === "INVALID_FILENAME") {
+      return notFound("Nama file backup tidak valid");
+    }
+    console.error("[API admin/backups restore]:", err);
+    return internalError();
+  }
+}
+
 export async function DELETE(
   req: Request,
   { params }: { params: Promise<{ filename: string }> }

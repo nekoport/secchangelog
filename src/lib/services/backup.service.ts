@@ -12,6 +12,24 @@ const execFileAsync = promisify(execFile);
 export const BACKUP_DIR =
   process.env.BACKUP_DIR || path.join(process.cwd(), "data", "backups");
 
+// Marker file read by docker-entrypoint.sh / scripts/restore-pending.ts
+// before the server starts, so the database is swapped while it is still
+// closed (no open SQLite handles) and never while the app is serving.
+export const RESTORE_MARKER_PATH =
+  process.env.RESTORE_MARKER_PATH ||
+  path.join(process.cwd(), "data", "restore-pending.json");
+
+// The live SQLite file, parsed from DATABASE_URL (file: URL) or a sensible default.
+export function databaseFilePath(): string {
+  const raw = process.env.DATABASE_URL || "";
+  if (raw.startsWith("file:")) {
+    const withoutProtocol = raw.slice("file:".length);
+    const clean = withoutProtocol.split(/[?#]/)[0] || "";
+    if (clean) return path.resolve(clean);
+  }
+  return path.resolve(process.cwd(), "data", "secchangelog.db");
+}
+
 const BACKUP_PREFIX = "secchangelog-backup";
 const BACKUP_EXT = ".tar.gz";
 const SNAPSHOT_NAME = "secchangelog.db";
@@ -208,5 +226,69 @@ export class BackupService {
       }
     }
     return removed;
+  }
+
+  /**
+   * Schedule a restore that will be applied on the next container start.
+   *
+   * Restoring a SQLite database while the server holds it open is unsafe, so
+   * instead we: (1) take a fresh safety backup of the current state, (2) write
+   * a marker file, (3) ask the API route to exit the process. The container's
+   * restart policy restarts it, docker-entrypoint.sh then runs
+   * scripts/restore-pending.ts BEFORE the server starts, which extracts the
+   * archive and atomically swaps the database + uploads while nothing is open.
+   */
+  static async prepareRestore(
+    filename: string,
+    userId: string,
+    requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
+  ): Promise<{ safetyBackup?: string }> {
+    if (!this.isValidFilename(filename)) {
+      throw new Error("INVALID_FILENAME");
+    }
+    const archivePath = this.safeResolve(filename);
+    try {
+      await fs.access(archivePath);
+    } catch {
+      throw new Error("NOT_FOUND");
+    }
+
+    // Safety net: snapshot the current state so a failed/mistaken restore is
+    // reversible. Best-effort — a corrupt DB must still be restorable.
+    let safetyBackup: string | undefined;
+    try {
+      const meta = await this.createBackup(userId, requestInfo);
+      safetyBackup = meta.filename;
+    } catch (err) {
+      console.error("[backup] safety backup before restore failed:", err);
+    }
+
+    // Marker consumed by scripts/restore-pending.ts on next boot.
+    await fs.mkdir(path.dirname(RESTORE_MARKER_PATH), { recursive: true });
+    await fs.writeFile(
+      RESTORE_MARKER_PATH,
+      JSON.stringify(
+        {
+          filename,
+          requestedBy: userId,
+          requestedAt: new Date().toISOString(),
+        },
+        null,
+        2
+      ),
+      { encoding: "utf8" }
+    );
+
+    await AuditTrailService.log({
+      userId,
+      action: "RESTORE_DATABASE_BACKUP",
+      entityType: "DatabaseBackup",
+      entityId: filename,
+      metadata: { filename, safetyBackup },
+      ipAddress: requestInfo?.ipAddress,
+      userAgent: requestInfo?.userAgent,
+    });
+
+    return { safetyBackup };
   }
 }

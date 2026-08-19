@@ -10,7 +10,7 @@ WORKDIR /app
 # -----------------------------------------------------------
 FROM base AS deps
 COPY package.json bun.lock ./
-RUN bun install --frozen-lockfile
+RUN rm -rf ~/.bun/install/cache && bun install --frozen-lockfile
 
 # -----------------------------------------------------------
 # Build

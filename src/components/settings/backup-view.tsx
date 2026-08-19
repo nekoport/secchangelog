@@ -27,6 +27,7 @@ import {
   Loader2,
   HardDrive,
   ShieldCheck,
+  RotateCcw,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -61,6 +62,7 @@ function formatDate(iso: string): string {
 export function BackupView() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
+  const [restoring, setRestoring] = useState<string | null>(null);
 
   const { data: backups, isLoading } = useQuery({
     queryKey: ["admin-backups"],
@@ -107,6 +109,40 @@ export function BackupView() {
       qc.invalidateQueries({ queryKey: ["admin-backups"] });
     } catch {
       toast.error("Gagal menghapus backup");
+    }
+  }
+
+  async function handleRestore(b: BackupMeta) {
+    if (restoring) return;
+    const first = confirm(
+      `Pulihkan data dari backup "${b.filename}"?\n\nSeluruh data saat ini akan DIGANTI dengan isi backup tersebut.`
+    );
+    if (!first) return;
+    const second = confirm(
+      "PERHATIAN: Tindakan ini akan menggantikan seluruh database (change log, user, pengaturan) dan file upload.\n\nSebelum restore, sistem otomatis membuat backup keselamatan data saat ini.\n\nAplikasi akan restart otomatis setelah restore dijadwalkan. Lanjutkan?"
+    );
+    if (!second) return;
+
+    setRestoring(b.filename);
+    try {
+      const res = await fetch(
+        `/api/admin/backups/${encodeURIComponent(b.filename)}`,
+        { method: "POST" }
+      );
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || "Gagal");
+      }
+      const data = await res.json();
+      toast.success(
+        data?.message || "Restore dijadwalkan. Aplikasi akan restart otomatis."
+      );
+      // Restart is imminent; stop polling.
+      qc.cancelQueries({ queryKey: ["admin-backups"] });
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setRestoring(null);
     }
   }
 
@@ -188,6 +224,20 @@ export function BackupView() {
                           onClick={() => handleDownload(b)}
                         >
                           <Download className="h-3.5 w-3.5" />
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="text-amber-500 border-amber-500/40 hover:bg-amber-500/10"
+                          onClick={() => handleRestore(b)}
+                          disabled={!!restoring}
+                          title="Restore data dari backup ini"
+                        >
+                          {restoring === b.filename ? (
+                            <Loader2 className="h-3.5 w-3.5 animate-spin" />
+                          ) : (
+                            <RotateCcw className="h-3.5 w-3.5" />
+                          )}
                         </Button>
                         <Button
                           size="sm"

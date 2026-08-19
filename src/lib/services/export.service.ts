@@ -42,7 +42,70 @@ function getImageSize(buf: Buffer): { width: number; height: number } {
       i += 2 + buf.readUInt16BE(i + 2);
     }
   }
+  // WebP (RIFF....WEBP; scan VP8 / VP8L / VP8X chunks)
+  if (
+    buf.length > 20 &&
+    buf.toString("ascii", 0, 4) === "RIFF" &&
+    buf.toString("ascii", 8, 12) === "WEBP"
+  ) {
+    let off = 12;
+    while (off + 8 <= buf.length) {
+      const tag = buf.toString("ascii", off, off + 4);
+      const size = buf.readUInt32LE(off + 4);
+      const dataStart = off + 8;
+      if (dataStart + size > buf.length) break;
+      if (tag === "VP8X") {
+        // 1 byte flags + 3 reserved + 3-byte (width-1) + 3-byte (height-1)
+        return {
+          width: buf.readUIntLE(dataStart + 4, 3) + 1,
+          height: buf.readUIntLE(dataStart + 7, 3) + 1,
+        };
+      }
+      if (tag === "VP8L") {
+        // 1 byte signature(0x2f) + bit-packed 14-bit (width-1)/(height-1)
+        const b1 = buf[dataStart + 1];
+        const b2 = buf[dataStart + 2];
+        const b3 = buf[dataStart + 3];
+        const b4 = buf[dataStart + 4];
+        const width = ((b1 | (b2 << 8) | (b3 << 16)) & 0x3fff) + 1;
+        const height = (((b1 >> 14) | (b2 << 2) | (b3 << 10) | (b4 << 18)) & 0x3fff) + 1;
+        return { width, height };
+      }
+      if (tag === "VP8 ") {
+        // 3-byte frame tag + 3-byte start code + 2-byte width + 2-byte height
+        return {
+          width: buf.readUInt16LE(dataStart + 6),
+          height: buf.readUInt16LE(dataStart + 8),
+        };
+      }
+      // skip child chunks (odd length chunks are padded to even)
+      off += 8 + size + (size % 2);
+    }
+  }
   throw new Error("UNSUPPORTED_IMAGE");
+}
+
+// Decode an uploaded screenshot into a buffer pdfkit can embed (JPEG/PNG) with
+// known dimensions. WebP is re-encoded to PNG via sharp so it can be embedded.
+async function loadImageForPdf(
+  buf: Buffer,
+  mimeType: string
+): Promise<{ buffer: Buffer; width: number; height: number } | null> {
+  try {
+    if (mimeType === "image/png" || mimeType === "image/jpeg") {
+      const { width, height } = getImageSize(buf);
+      return { buffer: buf, width, height };
+    }
+    if (mimeType === "image/webp") {
+      const sharp = (await import("sharp")).default;
+      const pngBuf = await sharp(buf).rotate().png().toBuffer();
+      const { width, height } = getImageSize(pngBuf);
+      return { buffer: pngBuf, width, height };
+    }
+    return null;
+  } catch {
+    return null;
+  }
 }
 
 // WIB = UTC+7 (fixed offset, no DST)
@@ -309,8 +372,20 @@ export class ExportService {
 
       doc.fillColor("#000");
 
+      // Page-break helper: returns a y that guarantees `needed` pt of room
+      // above the footer area, pushing to a fresh page when required.
+      const contentBottom = () => doc.page.height - 80;
+      const ensureSpace = (y: number, needed: number): number => {
+        if (y + needed > contentBottom()) {
+          doc.addPage();
+          return 50;
+        }
+        return y;
+      };
+
       // Section 1: Change Info
       let y = 200;
+      y = ensureSpace(y, 34);
       y = this.drawSectionTitle(doc, "Informasi Perubahan", 50, y);
       y += 10;
 
@@ -322,30 +397,44 @@ export class ExportService {
         ["Pemohon", log.requestor || "-"],
         ["PIC", log.pic.name],
         ["Pencatat", log.creator.name],
+        ["Risk Level", log.riskLevel || "-"],
         ["Waktu Implementasi", formatWibDateId(log.implementedAt)],
       ];
 
+      const labelW = 150;
+      const valueW = pageWidth - 160;
       for (const [label, value] of infoRows) {
-        doc.font("Helvetica-Bold").fontSize(9).text(label, 50, y, { width: 150 });
-        doc.font("Helvetica").fontSize(9).text(value, 210, y, { width: pageWidth - 160 });
-        y += 18;
+        y = ensureSpace(y, 22);
+        // Dynamic row height: count wrapped lines so tall values never
+        // overlap the row below them.
+        const labelH = doc.heightOfString(label, { width: labelW });
+        const valueH = doc.heightOfString(value, { width: valueW });
+        const rowH = Math.max(labelH, valueH, 18) + 2;
+        doc.font("Helvetica-Bold").fontSize(9).text(label, 50, y, { width: labelW });
+        doc.font("Helvetica").fontSize(9).text(value, 210, y, { width: valueW });
+        y += rowH;
       }
 
       y += 10;
       // Section 2: Description Before/After
+      y = ensureSpace(y, 34);
       y = this.drawSectionTitle(doc, "Deskripsi Perubahan", 50, y);
       y += 10;
 
+      y = ensureSpace(y, 24);
       doc.font("Helvetica-Bold").fontSize(9).text("PERMINTAAN:", 50, y);
       y += 14;
+      y = ensureSpace(y, 24);
       doc.font("Helvetica").fontSize(9).text(log.descriptionBefore, 50, y, {
         width: pageWidth,
         lineGap: 4,
       });
       y = (doc.y as number) + 14;
 
+      y = ensureSpace(y, 24);
       doc.font("Helvetica-Bold").fontSize(9).text("PERUBAHAN KONFIGURASI:", 50, y);
       y += 14;
+      y = ensureSpace(y, 24);
       doc.font("Helvetica").fontSize(9).text(log.descriptionAfter, 50, y, {
         width: pageWidth,
         lineGap: 4,
@@ -353,19 +442,24 @@ export class ExportService {
       y = (doc.y as number) + 14;
 
       // Section 3: Reason & Rollback
+      y = ensureSpace(y, 34);
       y = this.drawSectionTitle(doc, "Keterangan & Rollback Plan", 50, y);
       y += 10;
 
+      y = ensureSpace(y, 24);
       doc.font("Helvetica-Bold").fontSize(9).text("KETERANGAN:", 50, y);
       y += 14;
+      y = ensureSpace(y, 24);
       doc.font("Helvetica").fontSize(9).text(log.reason, 50, y, {
         width: pageWidth,
         lineGap: 4,
       });
       y = (doc.y as number) + 14;
 
+      y = ensureSpace(y, 24);
       doc.font("Helvetica-Bold").fontSize(9).text("ROLLBACK PLAN:", 50, y);
       y += 14;
+      y = ensureSpace(y, 24);
       doc.font("Helvetica").fontSize(9).text(log.rollbackPlan || "-", 50, y, {
         width: pageWidth,
         lineGap: 4,
@@ -374,6 +468,7 @@ export class ExportService {
 
       // Section 4: Screenshots
       if (log.screenshots.length > 0) {
+        y = ensureSpace(y, 34);
         y = this.drawSectionTitle(doc, "Bukti Screenshot", 50, y);
         y += 10;
 
@@ -381,9 +476,7 @@ export class ExportService {
           if (scr.mimeType === "application/pdf") continue; // skip PDF screenshots
 
           // Resolve + measure first so page-break & Y-advance are accurate.
-          // Note: pdfkit only advances doc.y when the image y is NOT explicit,
-          // so we must compute the rendered height ourselves.
-          let imgBuffer: Buffer | null = null;
+          let img: { buffer: Buffer; width: number; height: number } | null = null;
           let dispW: number | null = null;
           let dispH: number | null = null;
           const filePath = path.join(
@@ -393,36 +486,35 @@ export class ExportService {
             scr.filename
           );
           try {
-            imgBuffer = await fs.readFile(filePath);
-            if (scr.mimeType === "image/png" || scr.mimeType === "image/jpeg") {
-              const { width: imgW, height: imgH } = getImageSize(imgBuffer);
+            const raw = await fs.readFile(filePath);
+            img = await loadImageForPdf(raw, scr.mimeType);
+            if (img) {
               dispW = Math.min(500, pageWidth);
-              dispH = (dispW * imgH) / imgW;
+              dispH = (dispW * img.height) / img.width;
               if (dispH > 300) {
                 dispH = 300;
-                dispW = (dispH * imgW) / imgH;
+                dispW = (dispH * img.width) / img.height;
               }
             }
           } catch {
             // file missing / unreadable -> placeholder below
           }
 
-          const blockH = (dispH ?? 20) + 16 + 20;
-          if (y + blockH > doc.page.height - 80) {
+          const caption = `${scr.type} - ${scr.originalName}`;
+          // Measure the actual caption height so wrapped captions don't overlap.
+          const captionH = doc.heightOfString(caption, { width: pageWidth });
+          const blockH = (dispH ?? 20) + captionH + 8 + 20;
+          if (y + blockH > contentBottom()) {
             doc.addPage();
             y = 50;
           }
 
-          doc.font("Helvetica-Bold").fontSize(9).text(
-            `${scr.type} - ${scr.originalName}`,
-            50,
-            y
-          );
-          y += 16;
+          doc.font("Helvetica-Bold").fontSize(9).text(caption, 50, y, { width: pageWidth });
+          y += captionH + 8;
 
-          if (imgBuffer && dispW !== null && dispH !== null) {
+          if (img && dispW !== null && dispH !== null) {
             try {
-              doc.image(imgBuffer, 50, y, { width: dispW });
+              doc.image(img.buffer, 50, y, { width: dispW });
               y += dispH + 20;
             } catch {
               doc.font("Helvetica").fontSize(9).fillColor("#999").text(

@@ -8,6 +8,7 @@ import {
 import { db } from "@/lib/db";
 import { AuditTrailService } from "@/lib/services/audit-trail.service";
 import { getClientIp } from "@/lib/security/rate-limit";
+import { formatWibDateTime, formatWibDate } from "@/lib/utils";
 import { NextResponse } from "next/server";
 
 export async function GET(req: Request) {
@@ -51,7 +52,7 @@ export async function GET(req: Request) {
     const XLSX = await import("@e965/xlsx");
 
     const sheetData = items.map((item) => ({
-      "Timestamp": new Date(item.timestamp).toISOString().replace("T", " ").slice(0, 19),
+      "Timestamp": formatWibDateTime(new Date(item.timestamp)),
       "User": item.user?.name || "Unknown",
       "Email": item.user?.email || "",
       "Role": item.user?.role || "",
@@ -75,7 +76,7 @@ export async function GET(req: Request) {
 
     const buffer = XLSX.write(wb, { type: "buffer", bookType: "xlsx" }) as Buffer;
 
-    const dateStr = new Date().toISOString().slice(0, 10);
+    const dateStr = formatWibDate(new Date());
     const filename = `audit-trail-${dateStr}.xlsx`;
 
     return new NextResponse(new Uint8Array(buffer), {

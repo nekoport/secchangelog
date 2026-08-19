@@ -203,7 +203,12 @@ export function UsersView() {
         const err = await res.json();
         throw new Error(err.error?.message || "Gagal menghapus");
       }
-      toast.success("User dihapus (dinonaktifkan)");
+      const data = await res.json();
+      if (data?.deleted) {
+        toast.success("User dihapus permanen");
+      } else {
+        toast.info(data?.message || "User dinonaktifkan karena memiliki riwayat");
+      }
       setDeleteTarget(null);
       qc.invalidateQueries({ queryKey: ["admin-users"] });
     } catch (err) {
@@ -316,6 +321,7 @@ export function UsersView() {
                       <TableCell>
                         <Select
                           value={user.role}
+                          disabled={user.role === "ADMIN"}
                           onValueChange={(v) => handleChangeRole(user, v)}
                         >
                           <SelectTrigger className="h-7 w-32">
@@ -389,8 +395,9 @@ export function UsersView() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
+                            disabled={user.role === "ADMIN"}
                             onClick={() => handleToggleActive(user)}
-                            title={user.isActive ? "Nonaktifkan" : "Aktifkan"}
+                            title={user.role === "ADMIN" ? "Role ADMIN terkunci" : user.isActive ? "Nonaktifkan" : "Aktifkan"}
                           >
                             {user.isActive ? (
                               <Lock className="h-3.5 w-3.5" />
@@ -402,8 +409,9 @@ export function UsersView() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive"
+                            disabled={user.role === "ADMIN"}
                             onClick={() => setDeleteTarget(user)}
-                            title="Hapus user"
+                            title={user.role === "ADMIN" ? "Role ADMIN terkunci" : "Hapus user"}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>
@@ -603,8 +611,9 @@ export function UsersView() {
               ({deleteTarget?.email})?
             </p>
             <div className="p-3 rounded-md bg-destructive/10 border border-destructive/30 text-sm text-destructive">
-              Tindakan ini akan menonaktifkan akun. User tidak akan bisa login,
-              namun riwayat aktivitas tetap tersimpan.
+              User akan dihapus permanen bila tidak memiliki riwayat aktivitas.
+              Jika masih memiliki riwayat (perubahan log, permintaan hapus, dsb),
+              akun hanya akan dinonaktifkan agar data lama tetap utuh.
             </div>
           </div>
           <DialogFooter>

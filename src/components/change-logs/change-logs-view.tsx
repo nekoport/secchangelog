@@ -43,9 +43,6 @@ import {
   Edit,
 } from "lucide-react";
 import { toast } from "sonner";
-import {
-  CHANGE_TYPES,
-} from "@/lib/constants";
 import { cn } from "@/lib/utils";
 import { useSession } from "next-auth/react";
 import type { ViewType } from "@/components/layout/app-shell";
@@ -255,25 +252,14 @@ export function ChangeLogsView({
                 ))}
               </SelectContent>
             </Select>
-            <Select
-              value={changeType || "all"}
-              onValueChange={(v) => {
-                setChangeType(v === "all" ? "" : v);
+            <Input
+              placeholder="Tipe perubahan"
+              value={changeType}
+              onChange={(e) => {
+                setChangeType(e.target.value);
                 setPage(1);
               }}
-            >
-              <SelectTrigger>
-                <SelectValue placeholder="Tipe" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="all">Semua Tipe</SelectItem>
-                {CHANGE_TYPES.map((c) => (
-                  <SelectItem key={c} value={c}>
-                    {c}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
+            />
           </div>
 
           <div className="mt-3 grid grid-cols-1 md:grid-cols-4 gap-3">

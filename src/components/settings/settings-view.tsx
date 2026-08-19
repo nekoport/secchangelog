@@ -132,6 +132,7 @@ export function SettingsView() {
 
   // Device types (general categories)
   const [showCreateDevice, setShowCreateDevice] = useState(false);
+  const [editingDeviceType, setEditingDeviceType] = useState<DeviceType | null>(null);
   const [newDeviceName, setNewDeviceName] = useState("");
   const [newDeviceDesc, setNewDeviceDesc] = useState("");
   const [creatingDevice, setCreatingDevice] = useState(false);
@@ -436,6 +437,46 @@ export function SettingsView() {
       }
       toast.success("Jenis perangkat dibuat");
       setShowCreateDevice(false);
+      setNewDeviceName("");
+      setNewDeviceDesc("");
+      refetchDt();
+    } catch (err) {
+      toast.error((err as Error).message);
+    } finally {
+      setCreatingDevice(false);
+    }
+  }
+
+  function openEditDeviceType(dt: DeviceType) {
+    setEditingDeviceType(dt);
+    setNewDeviceName(dt.name);
+    setNewDeviceDesc(dt.description || "");
+    setShowCreateDevice(true);
+  }
+
+  async function handleUpdateDeviceType() {
+    if (!editingDeviceType) return;
+    if (!newDeviceName.trim()) {
+      toast.error("Nama wajib diisi");
+      return;
+    }
+    setCreatingDevice(true);
+    try {
+      const res = await fetch(`/api/admin/device-types/${editingDeviceType.id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          name: newDeviceName,
+          description: newDeviceDesc,
+        }),
+      });
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error?.message || "Gagal");
+      }
+      toast.success("Jenis perangkat diperbarui");
+      setShowCreateDevice(false);
+      setEditingDeviceType(null);
       setNewDeviceName("");
       setNewDeviceDesc("");
       refetchDt();
@@ -814,6 +855,15 @@ export function SettingsView() {
                           {dt._count?.changeLogs || 0}
                         </TableCell>
                         <TableCell className="text-right">
+                          <Button
+                            variant="ghost"
+                            size="icon"
+                            className="h-8 w-8"
+                            onClick={() => openEditDeviceType(dt)}
+                            title="Edit jenis perangkat"
+                          >
+                            <Pencil className="h-3.5 w-3.5" />
+                          </Button>
                           <Button
                             variant="ghost"
                             size="icon"
@@ -1232,11 +1282,23 @@ export function SettingsView() {
       {/* Backup Tab */}
       {tab === "backup" && <BackupView />}
 
-      {/* Create Device Type Dialog */}
-      <Dialog open={showCreateDevice} onOpenChange={setShowCreateDevice}>
+      {/* Create/Edit Device Type Dialog */}
+      <Dialog
+        open={showCreateDevice}
+        onOpenChange={(open) => {
+          setShowCreateDevice(open);
+          if (!open) {
+            setEditingDeviceType(null);
+            setNewDeviceName("");
+            setNewDeviceDesc("");
+          }
+        }}
+      >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Tambah Jenis Perangkat</DialogTitle>
+            <DialogTitle>
+              {editingDeviceType ? "Edit Jenis Perangkat" : "Tambah Jenis Perangkat"}
+            </DialogTitle>
           </DialogHeader>
           <div className="space-y-3">
             <div className="space-y-2">
@@ -1263,16 +1325,24 @@ export function SettingsView() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setShowCreateDevice(false)}
+              onClick={() => {
+                setShowCreateDevice(false);
+                setEditingDeviceType(null);
+              }}
               disabled={creatingDevice}
             >
               Batal
             </Button>
-            <Button onClick={handleCreateDeviceType} disabled={creatingDevice}>
+            <Button
+              onClick={
+                editingDeviceType ? handleUpdateDeviceType : handleCreateDeviceType
+              }
+              disabled={creatingDevice}
+            >
               {creatingDevice ? (
                 <Loader2 className="h-4 w-4 mr-2 animate-spin" />
               ) : null}
-              Tambah
+              {editingDeviceType ? "Simpan" : "Tambah"}
             </Button>
           </DialogFooter>
         </DialogContent>

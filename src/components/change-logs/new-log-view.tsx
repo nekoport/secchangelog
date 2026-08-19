@@ -25,10 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Upload, X, FileText, Image as ImageIcon, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
-import {
-  CHANGE_TYPES,
-  SCREENSHOT_TYPES,
-} from "@/lib/constants";
+import { SCREENSHOT_TYPES } from "@/lib/constants";
 import type { ViewType } from "@/components/layout/app-shell";
 import { cn } from "@/lib/utils";
 import { toDatetimeLocalValue } from "@/lib/utils";
@@ -302,18 +299,13 @@ export function NewLogView({
               <Label htmlFor="changeType">
                 Jenis Perubahan <span className="text-destructive">*</span>
               </Label>
-              <Select value={changeType} onValueChange={setChangeType}>
-                <SelectTrigger>
-                  <SelectValue placeholder="Pilih jenis perubahan" />
-                </SelectTrigger>
-                <SelectContent>
-                  {CHANGE_TYPES.map((c) => (
-                    <SelectItem key={c} value={c}>
-                      {c}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
+              <Input
+                id="changeType"
+                value={changeType}
+                onChange={(e) => setChangeType(e.target.value)}
+                placeholder="Contoh: Security Policy, Routing, NAT..."
+                maxLength={100}
+              />
             </div>
           </CardContent>
         </Card>

@@ -40,6 +40,30 @@ export async function PATCH(
   const existing = await db.user.findUnique({ where: { id } });
   if (!existing) return notFound("User tidak ditemukan");
 
+  // Lock the ADMIN role: an administrator can never change their own role,
+  // and the ADMIN role cannot be removed from any account that holds it.
+  if (existing.role === "ADMIN" && parsed.data.role && parsed.data.role !== "ADMIN") {
+    return conflict(
+      "Role ADMIN tidak dapat diubah. Gunakan akun lain untuk administrasi.",
+      "ADMIN_ROLE_LOCKED"
+    );
+  }
+  if (id === session.user.id && parsed.data.role && parsed.data.role !== "ADMIN") {
+    return conflict("Tidak bisa mengubah role akun sendiri", "SELF_ROLE_CHANGE");
+  }
+  if (parsed.data.role === "ADMIN" && !existing.role) {
+    // no-op, role always present; guard for clarity
+  }
+  if (existing.role === "ADMIN" && parsed.data.isActive === false) {
+    return conflict(
+      "Akun dengan role ADMIN tidak dapat dinonaktifkan.",
+      "ADMIN_ROLE_LOCKED"
+    );
+  }
+  if (id === session.user.id && parsed.data.isActive === false) {
+    return conflict("Tidak bisa menonaktifkan akun sendiri", "SELF_DEACTIVATE");
+  }
+
   const updateData: Record<string, unknown> = {};
   if (parsed.data.name !== undefined) updateData.name = parsed.data.name;
   if (parsed.data.username !== undefined) {
@@ -106,15 +130,68 @@ export async function DELETE(
   const existing = await db.user.findUnique({ where: { id } });
   if (!existing) return notFound();
 
-  // Soft delete: just deactivate
-  const updated = await db.user.update({
-    where: { id },
-    data: { isActive: false },
-  });
+  if (existing.role === "ADMIN") {
+    return conflict(
+      "Akun dengan role ADMIN tidak dapat dihapus.",
+      "ADMIN_ROLE_LOCKED"
+    );
+  }
+
+  // Prefer hard-delete, but only when the user has no history that still
+  // references them (ChangeLog pic/creator, DeleteRequest, SystemSetting).
+  // Otherwise fall back to deactivating so audit history stays intact.
+  const [picCount, creatorCount, reqCount, approvedCount, settingCount] =
+    await Promise.all([
+      db.changeLog.count({ where: { picId: id } }),
+      db.changeLog.count({ where: { createdById: id } }),
+      db.deleteRequest.count({ where: { requestedById: id } }),
+      db.deleteRequest.count({ where: { approvedById: id } }),
+      db.systemSetting.count({ where: { updatedById: id } }),
+    ]);
+
+  const historyCount =
+    picCount + creatorCount + reqCount + approvedCount + settingCount;
+
+  if (historyCount > 0) {
+    await db.user.update({
+      where: { id },
+      data: { isActive: false },
+    });
+
+    await AuditTrailService.log({
+      userId: session.user.id,
+      action: "DEACTIVATE_USER",
+      entityType: "User",
+      entityId: id,
+      metadata: {
+        email: existing.email,
+        reason: "HAS_HISTORY",
+        history: {
+          changeLogsPic: picCount,
+          changeLogsCreator: creatorCount,
+          deleteRequestsRequested: reqCount,
+          deleteRequestsApproved: approvedCount,
+          systemSettingsUpdated: settingCount,
+        },
+      },
+      ipAddress: getClientIp(req),
+      userAgent: req.headers.get("user-agent"),
+    });
+
+    return apiSuccess({
+      id,
+      isActive: false,
+      deleted: false,
+      message: `User memiliki riwayat aktivitas (${historyCount} data) sehingga hanya dinonaktifkan.`,
+    });
+  }
+
+  // No history: safe to remove the account entirely.
+  await db.user.delete({ where: { id } });
 
   await AuditTrailService.log({
     userId: session.user.id,
-    action: "DEACTIVATE_USER",
+    action: "DELETE_USER",
     entityType: "User",
     entityId: id,
     metadata: { email: existing.email },
@@ -122,5 +199,5 @@ export async function DELETE(
     userAgent: req.headers.get("user-agent"),
   });
 
-  return apiSuccess({ id, isActive: false });
+  return apiSuccess({ id, isActive: false, deleted: true });
 }

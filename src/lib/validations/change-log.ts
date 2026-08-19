@@ -1,9 +1,5 @@
 import { z } from "zod";
-import {
-  CHANGE_TYPES,
-  RISK_LEVELS,
-  SCREENSHOT_TYPES,
-} from "../constants";
+import { RISK_LEVELS, SCREENSHOT_TYPES } from "../constants";
 
 export const createChangeLogSchema = z.object({
   deviceTypeId: z.string().min(1, "Jenis perangkat wajib dipilih"),
@@ -21,9 +17,10 @@ export const createChangeLogSchema = z.object({
     .string()
     .min(1, "Pemohon wajib diisi")
     .max(100, "Pemohon maksimal 100 karakter"),
-  changeType: z.enum(CHANGE_TYPES, {
-    message: "Jenis perubahan tidak valid",
-  }),
+  changeType: z
+    .string()
+    .min(1, "Jenis perubahan wajib diisi")
+    .max(100, "Jenis perubahan maksimal 100 karakter"),
   descriptionBefore: z
     .string()
     .min(10, "Permintaan minimal 10 karakter")
