@@ -45,6 +45,7 @@ interface User {
   role: string;
   ldapDn: string | null;
   isActive: boolean;
+  isSystemAdmin: boolean;
   failedAttempts: number;
   lockedUntil: string | null;
   lastLoginAt: string | null;
@@ -321,7 +322,7 @@ export function UsersView() {
                       <TableCell>
                         <Select
                           value={user.role}
-                          disabled={user.role === "ADMIN"}
+                          disabled={user.isSystemAdmin}
                           onValueChange={(v) => handleChangeRole(user, v)}
                         >
                           <SelectTrigger className="h-7 w-32">
@@ -387,6 +388,7 @@ export function UsersView() {
                             size="icon"
                             className="h-8 w-8"
                             onClick={() => setResetTarget(user)}
+                            disabled={user.isSystemAdmin}
                             title="Reset Password"
                           >
                             <KeyRound className="h-3.5 w-3.5" />
@@ -395,9 +397,9 @@ export function UsersView() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8"
-                            disabled={user.role === "ADMIN"}
+                            disabled={user.isSystemAdmin}
                             onClick={() => handleToggleActive(user)}
-                            title={user.role === "ADMIN" ? "Role ADMIN terkunci" : user.isActive ? "Nonaktifkan" : "Aktifkan"}
+                            title={user.isSystemAdmin ? "System Administrator terkunci" : user.isActive ? "Nonaktifkan" : "Aktifkan"}
                           >
                             {user.isActive ? (
                               <Lock className="h-3.5 w-3.5" />
@@ -409,9 +411,9 @@ export function UsersView() {
                             variant="ghost"
                             size="icon"
                             className="h-8 w-8 text-destructive"
-                            disabled={user.role === "ADMIN"}
+                            disabled={user.isSystemAdmin}
                             onClick={() => setDeleteTarget(user)}
-                            title={user.role === "ADMIN" ? "Role ADMIN terkunci" : "Hapus user"}
+                            title={user.isSystemAdmin ? "System Administrator terkunci" : "Hapus user"}
                           >
                             <Trash2 className="h-3.5 w-3.5" />
                           </Button>

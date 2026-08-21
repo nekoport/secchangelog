@@ -90,6 +90,7 @@ export function SettingsView() {
 
   // General settings
   const [systemName, setSystemName] = useState("");
+  const [footerText, setFooterText] = useState("");
   const [savingGeneral, setSavingGeneral] = useState(false);
   const [uploadingLogo, setUploadingLogo] = useState(false);
   const [uploadingFavicon, setUploadingFavicon] = useState(false);
@@ -154,6 +155,7 @@ export function SettingsView() {
     // Hydrate form state once from the latest loaded settings.
     queueMicrotask(() => {
       setSystemName(settings["system.name"] || "SecChangeLog");
+      setFooterText(settings["system.footerText"] || "");
       setLdapEnabled(settings["ldap.enabled"] === "true");
       setLdapUrl(settings["ldap.url"] || "");
       setLdapBindDn(settings["ldap.bindDn"] || "");
@@ -202,11 +204,13 @@ export function SettingsView() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
           "system.name": systemName,
+          "system.footerText": footerText,
         }),
       });
       if (!res.ok) throw new Error("Gagal");
       toast.success("Pengaturan umum disimpan");
       qc.invalidateQueries({ queryKey: ["system-settings"] });
+      qc.invalidateQueries({ queryKey: ["public-system"] });
     } catch {
       toast.error("Gagal menyimpan");
     } finally {
@@ -233,6 +237,7 @@ export function SettingsView() {
       }
       toast.success("Logo berhasil diupload");
       qc.invalidateQueries({ queryKey: ["system-settings"] });
+      qc.invalidateQueries({ queryKey: ["public-system"] });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -246,6 +251,7 @@ export function SettingsView() {
       if (!res.ok) throw new Error("Gagal");
       toast.success("Logo direset");
       qc.invalidateQueries({ queryKey: ["system-settings"] });
+      qc.invalidateQueries({ queryKey: ["public-system"] });
     } catch {
       toast.error("Gagal reset logo");
     }
@@ -270,6 +276,7 @@ export function SettingsView() {
       }
       toast.success("Favicon berhasil diupload");
       qc.invalidateQueries({ queryKey: ["system-settings"] });
+      qc.invalidateQueries({ queryKey: ["public-system"] });
     } catch (err) {
       toast.error((err as Error).message);
     } finally {
@@ -285,6 +292,7 @@ export function SettingsView() {
       if (!res.ok) throw new Error("Gagal");
       toast.success("Favicon direset");
       qc.invalidateQueries({ queryKey: ["system-settings"] });
+      qc.invalidateQueries({ queryKey: ["public-system"] });
     } catch {
       toast.error("Gagal reset favicon");
     }
@@ -635,6 +643,11 @@ export function SettingsView() {
                   placeholder="SecChangeLog"
                 />
               </div>
+              <div className="space-y-2">
+                <Label htmlFor="footerText">Teks Footer</Label>
+                <Input id="footerText" value={footerText} onChange={(e) => setFooterText(e.target.value)} maxLength={200} placeholder="Kosong untuk memakai nama sistem" />
+                <p className="text-xs text-muted-foreground">Maksimal 200 karakter.</p>
+              </div>
               <Button onClick={handleSaveGeneral} disabled={savingGeneral}>
                 {savingGeneral ? (
                   <Loader2 className="h-4 w-4 mr-2 animate-spin" />
@@ -654,14 +667,10 @@ export function SettingsView() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-4 p-4 border border-border rounded-md">
+              <div className="flex items-center gap-4 rounded-md border border-border bg-muted p-4">
                 {settings?.["system.logoPath"] ? (
                    
-                  <img
-                    src="/api/files/logo"
-                    alt="Logo"
-                    className="h-16 w-16 object-contain"
-                  />
+                  <div className="flex h-20 w-20 items-center justify-center rounded-md border border-border bg-[repeating-conic-gradient(#d1d5db_0%_25%,#374151_0%_50%)] bg-[length:12px_12px] p-2 shadow-inner"><img src="/api/files/logo" alt="Pratinjau logo sistem" className="h-full w-full object-contain" /></div>
                 ) : (
                   <div className="h-16 w-16 rounded-md bg-primary/10 flex items-center justify-center text-primary">
                     <ImageIcon className="h-8 w-8" />
@@ -723,13 +732,9 @@ export function SettingsView() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="flex items-center gap-4 p-4 border border-border rounded-md">
+              <div className="flex items-center gap-4 rounded-md border border-border bg-muted p-4">
                 {settings?.["system.faviconPath"] ? (
-                  <img
-                    src="/api/files/favicon"
-                    alt="Favicon"
-                    className="h-8 w-8 object-contain"
-                  />
+                  <div className="flex h-12 w-12 items-center justify-center rounded-md border border-border bg-[repeating-conic-gradient(#d1d5db_0%_25%,#374151_0%_50%)] bg-[length:8px_8px] p-2 shadow-inner"><img src="/api/files/favicon" alt="Pratinjau favicon sistem" className="h-full w-full object-contain" /></div>
                 ) : (
                   <div className="h-8 w-8 rounded-md bg-primary/10 flex items-center justify-center text-primary">
                     <ImageIcon className="h-4 w-4" />

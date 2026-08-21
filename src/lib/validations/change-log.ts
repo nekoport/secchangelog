@@ -31,8 +31,9 @@ export const createChangeLogSchema = z.object({
     .max(5000, "Deskripsi maksimal 5000 karakter"),
   reason: z
     .string()
-    .min(10, "Keterangan minimal 10 karakter")
-    .max(2000, "Keterangan maksimal 2000 karakter"),
+    .max(2000, "Keterangan maksimal 2000 karakter")
+    .optional()
+    .or(z.literal("")),
   riskLevel: z
     .enum(Object.keys(RISK_LEVELS) as [string, ...string[]], {
       message: "Risk level tidak valid",
@@ -47,6 +48,7 @@ export const createChangeLogSchema = z.object({
   screenshotIds: z
     .array(z.string().min(1))
     .max(10, "Maksimal 10 screenshot")
+    .refine((ids) => new Set(ids).size === ids.length, "Screenshot tidak boleh duplikat")
     .optional()
     .default([]),
 });
@@ -54,7 +56,11 @@ export const createChangeLogSchema = z.object({
 export type CreateChangeLogInput = z.infer<typeof createChangeLogSchema>;
 
 export const updateChangeLogSchema = createChangeLogSchema.partial().extend({
-  screenshotIds: z.array(z.string().min(1)).max(10).optional(),
+  screenshotIds: z
+    .array(z.string().min(1))
+    .max(10)
+    .refine((ids) => new Set(ids).size === ids.length, "Screenshot tidak boleh duplikat")
+    .optional(),
 });
 
 export type UpdateChangeLogInput = z.infer<typeof updateChangeLogSchema>;

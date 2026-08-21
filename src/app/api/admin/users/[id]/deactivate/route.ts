@@ -23,17 +23,18 @@ export async function POST(
 
   const existing = await db.user.findUnique({ where: { id } });
   if (!existing) return notFound();
+  if (existing.isSystemAdmin) return forbidden("Akun System Administrator tidak dapat dinonaktifkan.");
 
-  if (existing.role === "ADMIN") {
-    return forbidden("Akun dengan role ADMIN tidak dapat dinonaktifkan.");
-  }
   if (id === session.user.id) {
     return forbidden("Tidak bisa menonaktifkan akun sendiri.");
   }
 
   await db.user.update({
     where: { id },
-    data: { isActive: false },
+    data: {
+      isActive: false,
+      sessionVersion: { increment: 1 },
+    },
   });
 
   await AuditTrailService.log({

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { SessionProvider, signOut, useSession } from "next-auth/react";
 import {
   LayoutDashboard,
@@ -12,19 +12,20 @@ import {
   Settings,
   LogOut,
   Menu,
-  X,
   Bell,
   User,
+  ShieldCheck,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
-import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
+import { Sheet, SheetContent } from "@/components/ui/sheet";
 import { cn } from "@/lib/utils";
 import { ThemeToggle } from "@/components/shared/theme-toggle";
 import { Logo } from "@/components/shared/logo";
-import { useSystemSettings } from "@/hooks/use-system-settings";
+import { usePublicSystem } from "@/hooks/use-public-system";
 import type { Role } from "@/lib/constants";
+import { useRouter } from "next/navigation";
 
 export type ViewType =
   | "dashboard"
@@ -41,7 +42,7 @@ interface NavItem {
   id: ViewType;
   label: string;
   icon: React.ElementType;
-  roles?: Role[]; // if undefined, all roles
+  roles?: Role[];
 }
 
 const NAV_ITEMS: NavItem[] = [
@@ -54,9 +55,10 @@ const NAV_ITEMS: NavItem[] = [
   { id: "settings", label: "Settings", icon: Settings, roles: ["ADMIN"] },
 ];
 
-const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
+const NAV_GROUPS: { label: string; code: string; items: NavItem[] }[] = [
   {
-    label: "Utama",
+    label: "Operasional",
+    code: "OPS",
     items: [
       NAV_ITEMS.find((n) => n.id === "dashboard")!,
       NAV_ITEMS.find((n) => n.id === "logs")!,
@@ -64,7 +66,8 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
     ],
   },
   {
-    label: "Manajemen",
+    label: "Kontrol",
+    code: "CTL",
     items: [
       NAV_ITEMS.find((n) => n.id === "delete-requests")!,
       NAV_ITEMS.find((n) => n.id === "audit-trail")!,
@@ -75,8 +78,7 @@ const NAV_GROUPS: { label: string; items: NavItem[] }[] = [
 ];
 
 function canSee(item: NavItem, role: Role): boolean {
-  if (!item.roles) return true;
-  return item.roles.includes(role);
+  return !item.roles || item.roles.includes(role);
 }
 
 function SidebarContent({
@@ -89,44 +91,50 @@ function SidebarContent({
   pendingDeleteCount: number;
 }) {
   const { data: session } = useSession();
+  const router = useRouter();
   const role = (session?.user?.role as Role) || "ENGINEER";
-  const { settings } = useSystemSettings();
-  const systemName = settings?.["system.name"] || "SecChangeLog";
+  const { identity } = usePublicSystem();
+  const systemName = identity?.name || "SecChangeLog";
 
   function handleLogout() {
-    // Fire signout, but never let a hanging redirect block the navigation.
     Promise.race([
       signOut({ redirect: false, callbackUrl: "/login" }).catch(() => {}),
       new Promise((resolve) => setTimeout(resolve, 2500)),
     ]).then(() => {
-      // Full page load so NextAuth session/cookies are fully cleared
-      window.location.assign("/login");
+      router.replace("/login");
+      router.refresh();
     });
   }
 
   return (
     <div className="flex h-full flex-col bg-sidebar text-sidebar-foreground">
-      {/* Logo & System Name */}
-      <div className="flex items-center gap-3 p-5 border-b border-sidebar-border">
-        <Logo size={36} />
-        <div className="flex-1 min-w-0">
-          <h1 className="text-sm font-bold truncate">{systemName}</h1>
-          <p className="text-[10px] text-muted-foreground uppercase tracking-wider">
-            Security Change Log
-          </p>
+      <div className="relative border-b border-sidebar-border px-5 pb-5 pt-5">
+        <div className="absolute inset-x-0 bottom-0 h-px signal-line opacity-45" />
+        <div className="flex items-center gap-3.5">
+          <Logo size={40} className="shrink-0" />
+          <div className="min-w-0 flex-1">
+            <h1 className="font-display truncate text-[15px] font-semibold tracking-[0.01em]">
+              {systemName}
+            </h1>
+            <div className="mt-1 flex items-center gap-1.5 font-mono text-[9px] uppercase tracking-[0.14em] text-sidebar-foreground/50">
+              <span className="h-1.5 w-1.5 rounded-full bg-primary shadow-[0_0_8px_var(--primary)]" />
+              Secure workspace
+            </div>
+          </div>
         </div>
       </div>
 
-      {/* Nav */}
-      <nav className="flex-1 overflow-y-auto p-3 space-y-4">
+      <nav aria-label="Navigasi utama" className="flex-1 space-y-6 overflow-y-auto px-3 py-5">
         {NAV_GROUPS.map((group) => {
           const items = group.items.filter((item) => canSee(item, role));
           if (items.length === 0) return null;
           return (
             <div key={group.label}>
-              <p className="px-3 pb-1.5 text-[10px] font-semibold uppercase tracking-wider text-muted-foreground/70">
-                {group.label}
-              </p>
+              <div className="mb-2 flex items-center gap-2 px-3 font-mono text-[9px] font-semibold uppercase tracking-[0.13em] text-sidebar-foreground/40">
+                <span className="text-primary/70">{group.code}</span>
+                <span className="h-px flex-1 bg-sidebar-border/70" />
+                <span>{group.label}</span>
+              </div>
               <div className="space-y-1">
                 {items.map((item) => {
                   const Icon = item.icon;
@@ -134,24 +142,27 @@ function SidebarContent({
                   return (
                     <button
                       key={item.id}
+                      type="button"
                       onClick={() => onNavigate(item.id)}
                       title={item.label}
+                      aria-current={active ? "page" : undefined}
                       className={cn(
-                        "flex items-center gap-3 w-full px-3 py-2.5 rounded-md text-sm font-medium transition-all duration-150 border-l-[3px] group",
+                        "group relative flex w-full items-center gap-3 rounded-md px-3 py-2.5 text-sm font-medium transition-colors duration-150 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/60",
                         active
-                          ? "bg-sidebar-primary text-sidebar-primary-foreground shadow-md glow-primary ring-1 ring-primary/40 border-l-primary translate-x-0"
-                          : "border-l-transparent text-sidebar-foreground/80 hover:bg-sidebar-accent hover:text-sidebar-accent-foreground hover:translate-x-0.5"
+                          ? "bg-sidebar-accent text-sidebar-accent-foreground"
+                          : "text-sidebar-foreground/66 hover:bg-sidebar-accent/60 hover:text-sidebar-accent-foreground"
                       )}
                     >
-                      <Icon className="h-4 w-4 shrink-0" />
-                      <span className="flex-1 text-left truncate">
-                        {item.label}
-                      </span>
+                      <span
+                        className={cn(
+                          "absolute bottom-2 left-0 top-2 w-0.5 rounded-full transition-colors",
+                          active ? "bg-primary shadow-[0_0_10px_var(--primary)]" : "bg-transparent"
+                        )}
+                      />
+                      <Icon className={cn("h-4 w-4 shrink-0", active ? "text-primary" : "text-sidebar-foreground/45 group-hover:text-sidebar-foreground/75")} />
+                      <span className="flex-1 truncate text-left">{item.label}</span>
                       {item.id === "delete-requests" && pendingDeleteCount > 0 && (
-                        <Badge
-                          variant="destructive"
-                          className="h-5 px-1.5 text-[10px]"
-                        >
+                        <Badge variant="destructive" className="min-w-5 px-1.5">
                           {pendingDeleteCount}
                         </Badge>
                       )}
@@ -164,48 +175,37 @@ function SidebarContent({
         })}
       </nav>
 
-      {/* User Info */}
-      <div className="border-t border-sidebar-border p-3">
-        <div className="flex items-center gap-3 p-2 rounded-md">
-          <Avatar className="h-9 w-9 border border-border">
-            <AvatarFallback className="bg-primary/10 text-primary text-xs font-semibold">
+      <div className="border-t border-sidebar-border p-3.5">
+        <button
+          type="button"
+          onClick={() => onNavigate("profile")}
+          className="flex w-full items-center gap-3 rounded-md border border-transparent p-2.5 text-left transition-colors hover:border-sidebar-border hover:bg-sidebar-accent/55 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-sidebar-ring/60"
+        >
+          <Avatar className="h-9 w-9 border border-primary/25">
+            <AvatarFallback className="bg-primary/10 text-xs font-semibold text-primary">
               {session?.user?.name?.charAt(0)?.toUpperCase() || "U"}
             </AvatarFallback>
           </Avatar>
-          <div className="flex-1 min-w-0">
-            <p className="text-xs font-semibold truncate">
+          <div className="min-w-0 flex-1">
+            <p className="truncate text-xs font-semibold text-sidebar-foreground">
               {session?.user?.name}
             </p>
-            <p className="text-[10px] text-muted-foreground truncate">
-              {session?.user?.email}
+            <p className="mt-0.5 truncate font-mono text-[9px] uppercase tracking-[0.08em] text-sidebar-foreground/45">
+              {role}
             </p>
           </div>
-          <Button
-            variant="ghost"
-            size="icon"
-            className="h-8 w-8 text-muted-foreground hover:text-primary"
-            onClick={() => onNavigate("profile")}
-            title="Profile"
-            type="button"
-          >
-            <User className="h-4 w-4" />
-          </Button>
-        </div>
-        <div className="mt-2 flex items-center gap-2">
-          <Badge variant="outline" className="text-[10px] uppercase">
-            {role}
-          </Badge>
-          <Button
-            variant="ghost"
-            size="sm"
-            type="button"
-            className="flex-1 gap-2 text-muted-foreground hover:text-destructive hover:bg-sidebar-accent"
-            onClick={handleLogout}
-          >
-            <LogOut className="h-4 w-4" />
-            Logout
-          </Button>
-        </div>
+          <User className="h-4 w-4 text-sidebar-foreground/35" />
+        </button>
+        <Button
+          variant="ghost"
+          size="sm"
+          type="button"
+          className="mt-1 w-full justify-start gap-2.5 text-sidebar-foreground/50 hover:bg-sidebar-accent hover:text-destructive"
+          onClick={handleLogout}
+        >
+          <LogOut className="h-4 w-4" />
+          Keluar
+        </Button>
       </div>
     </div>
   );
@@ -222,23 +222,19 @@ export function AppShell({
   pendingDeleteCount: number;
   children: React.ReactNode;
 }) {
+  const { identity } = usePublicSystem();
   const [mobileOpen, setMobileOpen] = useState(false);
   const { data: session } = useSession();
+  const currentLabel = NAV_ITEMS.find((n) => n.id === current)?.label || "Dashboard";
 
   return (
     <div className="flex h-screen overflow-hidden bg-background">
-      {/* Desktop Sidebar */}
-      <aside className="hidden md:flex w-64 shrink-0 border-r border-border">
-        <SidebarContent
-          current={current}
-          onNavigate={onNavigate}
-          pendingDeleteCount={pendingDeleteCount}
-        />
+      <aside className="hidden w-[17.5rem] shrink-0 border-r border-sidebar-border md:flex">
+        <SidebarContent current={current} onNavigate={onNavigate} pendingDeleteCount={pendingDeleteCount} />
       </aside>
 
-      {/* Mobile Sidebar */}
       <Sheet open={mobileOpen} onOpenChange={setMobileOpen}>
-        <SheetContent side="left" className="w-64 p-0">
+        <SheetContent side="left" className="w-[17.5rem] border-sidebar-border p-0">
           <SidebarContent
             current={current}
             onNavigate={(v) => {
@@ -250,46 +246,53 @@ export function AppShell({
         </SheetContent>
       </Sheet>
 
-      {/* Main Content */}
-      <div className="flex-1 flex flex-col min-w-0">
-        {/* Top Bar */}
-        <header className="h-14 shrink-0 border-b border-border bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60 flex items-center gap-3 px-4 md:px-6">
+      <div className="flex min-w-0 flex-1 flex-col">
+        <header className="flex h-16 shrink-0 items-center gap-3 border-b border-border/80 bg-background/88 px-4 backdrop-blur-xl md:px-7">
           <Button
             variant="ghost"
             size="icon"
-            className="md:hidden h-9 w-9"
+            className="md:hidden"
             onClick={() => setMobileOpen(true)}
+            aria-label="Buka navigasi"
           >
             <Menu className="h-4 w-4" />
           </Button>
 
-          <div className="flex-1">
-            <h2 className="text-sm font-semibold capitalize">
-              {NAV_ITEMS.find((n) => n.id === current)?.label || "Dashboard"}
+          <div className="min-w-0 flex-1">
+            <h2 className="truncate font-display text-sm font-semibold tracking-[0.01em]">
+              {currentLabel}
             </h2>
           </div>
 
+          <div className="hidden items-center gap-2 rounded-md border border-border/70 bg-card/60 px-2.5 py-1.5 sm:flex">
+            <ShieldCheck className="h-3.5 w-3.5 text-primary" />
+            <span className="font-mono text-[9px] font-semibold uppercase tracking-[0.1em] text-muted-foreground">
+              Sesi aman
+            </span>
+          </div>
+
           {pendingDeleteCount > 0 &&
-            (session?.user?.role === "SUPERVISOR" ||
-              session?.user?.role === "ADMIN") && (
+            (session?.user?.role === "SUPERVISOR" || session?.user?.role === "ADMIN") && (
               <Button
                 variant="ghost"
                 size="icon"
-                className="relative h-9 w-9"
+                className="relative"
                 onClick={() => onNavigate("delete-requests")}
                 title={`${pendingDeleteCount} pengajuan hapus menunggu`}
+                aria-label={`${pendingDeleteCount} pengajuan hapus menunggu`}
               >
                 <Bell className="h-4 w-4" />
-                <span className="absolute top-1 right-1 h-2 w-2 rounded-full bg-destructive" />
+                <span className="absolute right-2 top-2 h-1.5 w-1.5 rounded-full bg-destructive ring-2 ring-background" />
               </Button>
             )}
 
           <ThemeToggle />
         </header>
 
-        {/* Page Content */}
-        <main className="flex-1 overflow-y-auto">
-          <div className="container mx-auto p-4 md:p-6 max-w-7xl">{children}</div>
+        <main className="app-canvas flex-1 overflow-y-auto">
+          <div className="container mx-auto max-w-[90rem] p-4 md:p-7 lg:p-8">{children}
+            <footer className="mt-8 border-t border-border/50 pt-3 text-center text-[11px] text-muted-foreground">{identity?.footerText || identity?.name || "SecChangeLog"}</footer>
+          </div>
         </main>
       </div>
     </div>

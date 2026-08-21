@@ -5,7 +5,9 @@ import { execFile } from "child_process";
 import { promisify } from "util";
 import { db } from "@/lib/db";
 import { AuditTrailService } from "@/lib/services/audit-trail.service";
-import { MAX_BACKUP_RETENTION } from "@/lib/constants";
+import { MAX_BACKUP_RETENTION, MAX_BACKUP_UPLOAD_SIZE } from "@/lib/constants";
+import { validateBackupMemberName, hasSqliteHeader, validateArchiveEntries } from "@/lib/security/backup-validation";
+import { randomBytes } from "crypto";
 
 const execFileAsync = promisify(execFile);
 
@@ -33,6 +35,8 @@ export function databaseFilePath(): string {
 const BACKUP_PREFIX = "secchangelog-backup";
 const BACKUP_EXT = ".tar.gz";
 const SNAPSHOT_NAME = "secchangelog.db";
+export { validateBackupMemberName, hasSqliteHeader } from "@/lib/security/backup-validation";
+const SQLITE_HEADER = Buffer.from("SQLite format 3\0", "ascii");
 
 export interface BackupMeta {
   filename: string;
@@ -65,7 +69,7 @@ export class BackupService {
     }
     // secchangelog-backup-YYYYMMDD-HHMMSS.tar.gz
     const re = new RegExp(
-      `^${BACKUP_PREFIX}-\\d{8}-\\d{6}${BACKUP_EXT.replace(/\./g, "\\.")}$`
+      `^${BACKUP_PREFIX}-\\d{8}-\\d{6}(?:-[a-z0-9]{6})?${BACKUP_EXT.replace(/\./g, "\\.")}$`
     );
     return re.test(filename);
   }
@@ -168,6 +172,54 @@ export class BackupService {
 
     metas.sort((a, b) => (a.createdAt < b.createdAt ? 1 : -1));
     return metas;
+  }
+
+  /** Validate and atomically add an uploaded SecChangeLog archive. Never restores it. */
+  static async uploadBackup(file: File): Promise<BackupMeta> {
+    if (!Number.isSafeInteger(file.size) || file.size <= 0 || file.size > MAX_BACKUP_UPLOAD_SIZE) throw new Error("INVALID_SIZE");
+    const bytes = Buffer.from(await file.arrayBuffer());
+    if (bytes.length === 0 || bytes.length > MAX_BACKUP_UPLOAD_SIZE) throw new Error("INVALID_SIZE");
+    if (bytes[0] !== 0x1f || bytes[1] !== 0x8b) throw new Error("INVALID_ARCHIVE");
+    await this.ensureDirectory();
+    const stamp = this.timestamp();
+    const filename = `${BACKUP_PREFIX}-${stamp}-${randomBytes(3).toString("hex")}${BACKUP_EXT}`;
+    const archivePath = this.safeResolve(filename);
+    const tmp = path.join(BACKUP_DIR, `.upload-${process.pid}-${Date.now()}.tmp`);
+    const extract = path.join(BACKUP_DIR, `.validate-${process.pid}-${Date.now()}`);
+    try {
+      await fs.writeFile(tmp, bytes, { flag: "wx" });
+      let verbose: string;
+      let namesOutput: string;
+      try {
+        ({ stdout: verbose } = await execFileAsync("tar", ["-tvzf", tmp], { maxBuffer: 2 * 1024 * 1024 }));
+        ({ stdout: namesOutput } = await execFileAsync("tar", ["-tzf", tmp], { maxBuffer: 2 * 1024 * 1024 }));
+      } catch {
+        throw new Error("INVALID_ARCHIVE");
+      }
+      const lines = verbose.split(/\r?\n/).filter(Boolean);
+      const names = namesOutput.split(/\r?\n/).filter(Boolean);
+      if (lines.length === 0 || lines.length > 10000 || names.length !== lines.length) throw new Error("INVALID_ARCHIVE");
+      const { names: members } = validateArchiveEntries(names, lines);
+      if (!members.includes(SNAPSHOT_NAME)) throw new Error("MISSING_DATABASE");
+      await fs.mkdir(extract, { recursive: true });
+      try {
+        await execFileAsync("tar", ["-xzf", tmp, "-C", extract, SNAPSHOT_NAME]);
+      } catch {
+        throw new Error("INVALID_ARCHIVE");
+      }
+      const dbPath = path.join(extract, SNAPSHOT_NAME);
+      const st = await fs.lstat(dbPath);
+      if (!st.isFile() || st.size < SQLITE_HEADER.length || st.size > 2 * 1024 * 1024 * 1024) throw new Error("INVALID_DATABASE");
+      const header = await fs.open(dbPath, "r");
+      try { const probe = Buffer.alloc(SQLITE_HEADER.length); await header.read(probe, 0, probe.length, 0); if (!hasSqliteHeader(probe)) throw new Error("INVALID_DATABASE"); } finally { await header.close(); }
+      await fs.rename(tmp, archivePath);
+      const stat = await fs.stat(archivePath);
+      await this.prune();
+      return { filename, size: stat.size, createdAt: stat.mtime.toISOString() };
+    } finally {
+      await fs.rm(tmp, { force: true }).catch(() => {});
+      await fs.rm(extract, { recursive: true, force: true }).catch(() => {});
+    }
   }
 
   static async getBackupStream(filename: string) {

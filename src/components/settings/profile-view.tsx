@@ -48,8 +48,22 @@ export function ProfileView({
   const [confirmPassword, setConfirmPassword] = useState("");
   const [submitting, setSubmitting] = useState(false);
   const [syncingTheme, setSyncingTheme] = useState<string | null>(null);
+  const [displayName, setDisplayName] = useState(() => session?.user?.name || "");
+  const [savingName, setSavingName] = useState(false);
 
   const [profile, setProfile] = useState<ProfileData | null>(null);
+  async function handleSaveName(e: React.FormEvent) {
+    e.preventDefault();
+    setSavingName(true);
+    try {
+      const res = await fetch("/api/profile", { method: "PATCH", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ name: displayName }) });
+      const json = await res.json();
+      if (!res.ok) throw new Error(json.error?.message || "Gagal menyimpan nama");
+      await updateSession();
+      toast.success("Nama berhasil diperbarui");
+    } catch (err) { toast.error((err as Error).message); }
+    finally { setSavingName(false); }
+  }
 
   // Load profile data (login info) once
   useEffect(() => {
@@ -87,6 +101,10 @@ export function ProfileView({
 
   async function handleApplyTheme(next: "light" | "dark") {
     setTheme(next);
+    if (session?.user?.role !== "ADMIN") {
+      toast.success(`Tema ${next === "dark" ? "gelap" : "terang"} diterapkan`);
+      return;
+    }
     setSyncingTheme(next);
     try {
       const res = await fetch("/api/admin/settings", {
@@ -218,8 +236,15 @@ export function ProfileView({
           </CardContent>
         </Card>
 
-        {/* Change Password Card */}
         <Card className="lg:col-span-2">
+          <CardHeader><CardTitle className="text-base">Nama Tampilan</CardTitle><CardDescription>Nama ini tampil sebagai PIC dan di navigasi.</CardDescription></CardHeader>
+          <CardContent><form onSubmit={handleSaveName} className="flex gap-2"><Input value={displayName} onChange={(e) => setDisplayName(e.target.value)} maxLength={100} aria-label="Nama tampilan" /><Button type="submit" disabled={savingName}>{savingName ? <Loader2 className="h-4 w-4 animate-spin" /> : "Simpan"}</Button></form></CardContent>
+        </Card>
+
+        {/* Change Password Card */}
+        {session?.user?.isSystemAdmin ? (
+          <Card className="lg:col-span-2"><CardHeader><CardTitle className="text-base">Password Sistem Administrator</CardTitle><CardDescription>Perubahan password akun ini hanya dilakukan melalui backend terkontrol.</CardDescription></CardHeader></Card>
+        ) : <Card className="lg:col-span-2">
           <CardHeader>
             <CardTitle className="text-base flex items-center gap-2">
               <KeyRound className="h-4 w-4" />
@@ -333,7 +358,7 @@ export function ProfileView({
               </div>
             </form>
           </CardContent>
-        </Card>
+        </Card>}
       </div>
 
       {/* Theme preference — synced to the system default theme */}

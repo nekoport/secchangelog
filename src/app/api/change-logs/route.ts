@@ -75,6 +75,7 @@ export async function POST(req: Request) {
     const changeLog = await ChangeLogService.create(
       parsed.data,
       session.user.id,
+      session.user.role,
       {
         ipAddress: getClientIp(req),
         userAgent: req.headers.get("user-agent"),
@@ -86,6 +87,7 @@ export async function POST(req: Request) {
     if (msg === "DEVICE_TYPE_NOT_FOUND") {
       return apiError("NOT_FOUND", "Jenis perangkat tidak ditemukan", 404);
     }
+    if (msg === "FORBIDDEN") return forbidden();
     console.error("[API change-logs POST]:", err);
     return internalError();
   }

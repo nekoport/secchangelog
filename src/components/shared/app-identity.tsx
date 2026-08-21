@@ -10,7 +10,8 @@ interface SystemIdentity {
 }
 
 // Fetches the public system identity endpoint and applies the
-// system name to the browser tab title and the favicon link.
+// system name to the browser tab title. The favicon is resolved by server
+// metadata so React remains the sole owner of nodes inside <head>.
 // Works on public pages (e.g. /login) too because it needs no session.
 export function AppIdentity() {
   const [identity, setIdentity] = useState<SystemIdentity | null>(null);
@@ -34,24 +35,6 @@ export function AppIdentity() {
       document.title = name;
     }
 
-    const faviconPath = identity?.faviconPath || "";
-    let link = document.querySelector<HTMLLinkElement>('link[rel="icon"]');
-    if (faviconPath) {
-      if (!link) {
-        link = document.createElement("link");
-        link.rel = "icon";
-        document.head.appendChild(link);
-      }
-      const faviconExt = faviconPath.split("?")[0];
-      link.href = "/api/files/favicon";
-      link.type = faviconExt.endsWith(".svg")
-        ? "image/svg+xml"
-        : faviconExt.endsWith(".ico")
-        ? "image/x-icon"
-        : "image/png";
-    } else if (link) {
-      link.remove();
-    }
   }, [identity]);
 
   return null;

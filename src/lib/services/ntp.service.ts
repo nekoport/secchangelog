@@ -1,5 +1,6 @@
 import dgram from "node:dgram";
-import { execSync } from "node:child_process";
+import { execFileSync } from "node:child_process";
+import { readFileSync } from "node:fs";
 import { SystemSettingService } from "@/lib/services/system-setting.service";
 
 // Seconds between the NTP epoch (1900-01-01) and UNIX epoch (1970-01-01)
@@ -112,11 +113,14 @@ function queryNtpServer(
 
 /** Detect whether the process is allowed to change the system clock (CAP_SYS_TIME). */
 function canSetSystemTime(): boolean {
+  if (process.env.ALLOW_SYSTEM_TIME_SYNC !== "true") return false;
   try {
-    const current = execSync("date +%s", { timeout: 5000 }).toString().trim();
-    // Setting the clock to its own current value is a harmless capability probe.
-    execSync(`date -s @${current}`, { timeout: 5000, stdio: "pipe" });
-    return true;
+    const status = readFileSync("/proc/self/status", "utf8");
+    const capEff = status.match(/^CapEff:\s*([0-9a-f]+)$/im)?.[1];
+    if (!capEff) return false;
+    const lowCapabilityBits = Number.parseInt(capEff.slice(-8), 16);
+    const CAP_SYS_TIME = 0x02000000;
+    return (lowCapabilityBits & CAP_SYS_TIME) !== 0;
   } catch {
     return false;
   }
@@ -124,8 +128,12 @@ function canSetSystemTime(): boolean {
 
 function applySystemTime(unixSec: number): boolean {
   try {
-    execSync(`date -s @${Math.floor(unixSec)}`, { timeout: 10_000 });
-    const out = execSync("date +%s", { timeout: 5000 }).toString().trim();
+    execFileSync("date", ["-s", `@${Math.floor(unixSec)}`], {
+      timeout: 10_000,
+    });
+    const out = execFileSync("date", ["+%s"], { timeout: 5000 })
+      .toString()
+      .trim();
     const appliedSec = parseInt(out, 10);
     return Math.abs(appliedSec - Math.floor(unixSec)) <= 2;
   } catch {
@@ -170,6 +178,9 @@ export class NtpService {
   static async sync(inputServer?: string): Promise<NtpSyncResult> {
     const server = inputServer?.trim() || (await this.getServer());
     try {
+      if (!canSetSystemTime()) {
+        throw new Error("Sinkronisasi waktu sistem dinonaktifkan pada kontainer");
+      }
       const { timeMs, roundTripMs } = await queryNtpServer(server);
       const adjustedMs = timeMs + roundTripMs / 2;
       const applied = applySystemTime(adjustedMs / 1000);

@@ -1,6 +1,41 @@
 import { db } from "@/lib/db";
 import { AuditTrailService } from "./audit-trail.service";
 import type { CreateChangeLogInput, UpdateChangeLogInput } from "@/lib/validations/change-log";
+import {
+  canLinkScreenshot,
+  canUpdateChangeLog,
+  type AppRole,
+} from "@/lib/security/authorization";
+import { formatTicketId } from "@/lib/security/ticket-id";
+
+async function assertScreenshotsCanBeLinked(
+  screenshotIds: string[],
+  targetChangeLogId: string,
+  userId: string,
+  userRole: AppRole
+) {
+  if (screenshotIds.length === 0) return;
+
+  const screenshots = await db.screenshot.findMany({
+    where: { id: { in: screenshotIds } },
+    select: { id: true, uploadedById: true, changeLogId: true },
+  });
+
+  if (screenshots.length !== screenshotIds.length) {
+    throw new Error("FORBIDDEN");
+  }
+
+  const authorized = screenshots.every((screenshot) =>
+    canLinkScreenshot({
+      role: userRole,
+      userId,
+      uploadedById: screenshot.uploadedById,
+      currentChangeLogId: screenshot.changeLogId,
+      targetChangeLogId,
+    })
+  );
+  if (!authorized) throw new Error("FORBIDDEN");
+}
 
 export class ChangeLogService {
   static async generateTicketId(): Promise<string> {
@@ -8,7 +43,7 @@ export class ChangeLogService {
     const yyyy = now.getFullYear();
     const mm = String(now.getMonth() + 1).padStart(2, "0");
     const dd = String(now.getDate()).padStart(2, "0");
-    const prefix = `SOC-${yyyy}/${mm}/${dd}-`;
+    const prefix = `SOC-${yyyy}${mm}${dd}-`;
 
     // Find the highest sequence for today
     const lastLog = await db.changeLog.findFirst({
@@ -22,12 +57,13 @@ export class ChangeLogService {
       if (!isNaN(lastSeq)) nextSeq = lastSeq + 1;
     }
 
-    return `${prefix}${String(nextSeq).padStart(4, "0")}`;
+    return formatTicketId(now, nextSeq);
   }
 
   static async create(
     input: CreateChangeLogInput,
     userId: string,
+    userRole: AppRole,
     requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
   ) {
     const ticketId = await this.generateTicketId();
@@ -56,6 +92,13 @@ export class ChangeLogService {
       throw new Error("DEVICE_TYPE_NOT_FOUND");
     }
 
+    await assertScreenshotsCanBeLinked(
+      input.screenshotIds,
+      "__new_change_log__",
+      userId,
+      userRole
+    );
+
     // Use transaction to ensure atomicity
     const changeLog = await db.$transaction(async (tx) => {
       const log = await tx.changeLog.create({
@@ -69,7 +112,7 @@ export class ChangeLogService {
           changeType: input.changeType,
           descriptionBefore: input.descriptionBefore,
           descriptionAfter: input.descriptionAfter,
-          reason: input.reason,
+          reason: input.reason || "",
           riskLevel: input.riskLevel || "LOW",
           picId: userId, // PIC is the creator by default
           rollbackPlan: input.rollbackPlan || null,
@@ -80,10 +123,16 @@ export class ChangeLogService {
 
       // Link screenshots (they were uploaded beforehand with changeLogId=null)
       if (input.screenshotIds && input.screenshotIds.length > 0) {
-        await tx.screenshot.updateMany({
-          where: { id: { in: input.screenshotIds } },
+        const linked = await tx.screenshot.updateMany({
+          where: {
+            id: { in: input.screenshotIds },
+            changeLogId: null,
+          },
           data: { changeLogId: log.id },
         });
+        if (linked.count !== input.screenshotIds.length) {
+          throw new Error("FORBIDDEN");
+        }
       }
 
       return log;
@@ -256,11 +305,31 @@ export class ChangeLogService {
     id: string,
     input: UpdateChangeLogInput,
     userId: string,
+    userRole: AppRole,
     requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
   ) {
     const existing = await db.changeLog.findUnique({ where: { id } });
     if (!existing) {
       throw new Error("NOT_FOUND");
+    }
+    if (
+      !canUpdateChangeLog({
+        role: userRole,
+        userId,
+        createdById: existing.createdById,
+        isDeleted: existing.isDeleted,
+      })
+    ) {
+      throw new Error("FORBIDDEN");
+    }
+
+    if (input.screenshotIds !== undefined) {
+      await assertScreenshotsCanBeLinked(
+        input.screenshotIds,
+        id,
+        userId,
+        userRole
+      );
     }
 
     const updateData: Record<string, unknown> = {};
@@ -293,26 +362,33 @@ export class ChangeLogService {
     if (input.rollbackPlan !== undefined) updateData.rollbackPlan = input.rollbackPlan || null;
     if (input.implementedAt !== undefined) updateData.implementedAt = new Date(input.implementedAt);
 
-    const updated = await db.changeLog.update({
-      where: { id },
-      data: updateData,
-    });
-
-    // Update screenshot links
-    if (input.screenshotIds !== undefined) {
-      // Unlink old screenshots
-      await db.screenshot.updateMany({
-        where: { changeLogId: id },
-        data: { changeLogId: null },
+    const updated = await db.$transaction(async (tx) => {
+      const log = await tx.changeLog.update({
+        where: { id },
+        data: updateData,
       });
-      // Link new ones
-      if (input.screenshotIds.length > 0) {
-        await db.screenshot.updateMany({
-          where: { id: { in: input.screenshotIds } },
-          data: { changeLogId: id },
+
+      if (input.screenshotIds !== undefined) {
+        await tx.screenshot.updateMany({
+          where: { changeLogId: id },
+          data: { changeLogId: null },
         });
+        if (input.screenshotIds.length > 0) {
+          const linked = await tx.screenshot.updateMany({
+            where: {
+              id: { in: input.screenshotIds },
+              changeLogId: null,
+            },
+            data: { changeLogId: id },
+          });
+          if (linked.count !== input.screenshotIds.length) {
+            throw new Error("FORBIDDEN");
+          }
+        }
       }
-    }
+
+      return log;
+    });
 
     await AuditTrailService.log({
       userId,

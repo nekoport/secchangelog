@@ -83,6 +83,7 @@ export const AUDIT_ACTIONS = {
   NTP_SYNC: "NTP_SYNC",
   UPDATE_NTP_SETTING: "UPDATE_NTP_SETTING",
   CREATE_DATABASE_BACKUP: "CREATE_DATABASE_BACKUP",
+  UPLOAD_DATABASE_BACKUP: "UPLOAD_DATABASE_BACKUP",
   DOWNLOAD_DATABASE_BACKUP: "DOWNLOAD_DATABASE_BACKUP",
   DELETE_DATABASE_BACKUP: "DELETE_DATABASE_BACKUP",
 } as const;
@@ -101,6 +102,9 @@ export const ALLOWED_EXTENSIONS = ["png", "jpg", "jpeg", "webp", "pdf"];
 
 export const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
 export const MAX_LOGO_SIZE = 2 * 1024 * 1024; // 2MB
+export const MAX_ORPHAN_SCREENSHOTS_PER_USER = 10;
+export const MAX_ORPHAN_UPLOAD_BYTES_PER_USER = 100 * 1024 * 1024; // 100MB
+export const ORPHAN_SCREENSHOT_TTL_MS = 60 * 60 * 1000; // 1 hour
 
 // Pagination
 export const DEFAULT_PAGE_SIZE = 20;
@@ -122,6 +126,7 @@ export const SESSION_MAX_AGE_HOURS = 8;
 
 // Backup database
 export const MAX_BACKUP_RETENTION = 30;
+export const MAX_BACKUP_UPLOAD_SIZE = 100 * 1024 * 1024;
 
 // Default device types (general categories)
 export const DEFAULT_DEVICE_TYPES = [
@@ -136,6 +141,7 @@ export const DEFAULT_DEVICE_TYPES = [
 // Default system settings
 export const DEFAULT_SETTINGS = {
   "system.name": "SecChangeLog",
+  "system.footerText": "",
   "system.logoPath": "",
   "system.faviconPath": "",
   "system.defaultTheme": "dark",

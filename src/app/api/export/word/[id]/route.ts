@@ -9,6 +9,7 @@ import {
 import { setRateLimitHeaders } from "@/lib/security/api-response";
 import { ExportService } from "@/lib/services/export.service";
 import { SystemSettingService } from "@/lib/services/system-setting.service";
+import { resolveFooterText } from "@/lib/security/footer-text";
 import { getClientIp, rateLimit, getRateLimitKey } from "@/lib/security/rate-limit";
 import { db } from "@/lib/db";
 import { NextResponse } from "next/server";
@@ -47,12 +48,14 @@ export async function GET(
     }
 
     const systemName = await SystemSettingService.getSystemName();
+    const footerText = resolveFooterText(await SystemSettingService.get("system.footerText"), systemName);
     const logoPath = await SystemSettingService.getLogoPath();
 
     const buffer = await ExportService.exportToWord(
       id,
       session.user.id,
       systemName,
+      footerText,
       logoPath || undefined,
       {
         ipAddress: ip,

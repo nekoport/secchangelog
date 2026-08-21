@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import type { ChangeEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   Card,
@@ -63,6 +64,7 @@ export function BackupView() {
   const qc = useQueryClient();
   const [creating, setCreating] = useState(false);
   const [restoring, setRestoring] = useState<string | null>(null);
+  const [uploading, setUploading] = useState(false);
 
   const { data: backups, isLoading } = useQuery({
     queryKey: ["admin-backups"],
@@ -88,6 +90,27 @@ export function BackupView() {
     } finally {
       setCreating(false);
     }
+  }
+
+  async function handleUpload(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+    if (!file.name.toLowerCase().endsWith(".tar.gz") || file.size > 100 * 1024 * 1024) {
+      toast.error("Pilih arsip .tar.gz SecChangeLog maksimal 100 MiB.");
+      return;
+    }
+    setUploading(true);
+    try {
+      const form = new FormData();
+      form.append("file", file, file.name);
+      const res = await fetch("/api/admin/backups", { method: "POST", body: form });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data?.error?.message || "Arsip tidak valid");
+      toast.success("Arsip backup berhasil ditambahkan ke pustaka. Restore belum dijalankan.");
+      qc.invalidateQueries({ queryKey: ["admin-backups"] });
+    } catch (err) { toast.error((err as Error).message); }
+    finally { setUploading(false); }
   }
 
   function handleDownload(b: BackupMeta) {
@@ -135,7 +158,7 @@ export function BackupView() {
       }
       const data = await res.json();
       toast.success(
-        data?.message || "Restore dijadwalkan. Aplikasi akan restart otomatis."
+        data?.message || "Pemulihan dijadwalkan. Aplikasi akan restart otomatis."
       );
       // Restart is imminent; stop polling.
       qc.cancelQueries({ queryKey: ["admin-backups"] });
@@ -165,7 +188,7 @@ export function BackupView() {
               <HardDrive className="h-3 w-3" /> Snapshot SQLite konsisten
             </Badge>
             <Badge variant="outline" className="text-[10px] gap-1">
-              <ShieldCheck className="h-3 w-3" /> Hanya Admin
+              <ShieldCheck className="h-3 w-3" /> Khusus Administrator
             </Badge>
           </div>
           <Button onClick={handleCreate} disabled={creating}>
@@ -176,6 +199,12 @@ export function BackupView() {
             )}
             Buat Backup Sekarang
           </Button>
+          <label className="inline-flex cursor-pointer items-center rounded-md border px-4 py-2 text-sm font-medium hover:bg-accent">
+            {uploading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Download className="mr-2 h-4 w-4 rotate-180" />}
+            Unggah Arsip Backup
+            <input type="file" accept=".tar.gz,application/gzip" className="sr-only" disabled={uploading} onChange={handleUpload} />
+          </label>
+          <p className="text-xs text-muted-foreground">Arsip hanya ditambahkan ke pustaka untuk ditinjau; tidak otomatis memulihkan data.</p>
         </CardContent>
       </Card>
 
@@ -183,7 +212,7 @@ export function BackupView() {
         <CardHeader>
           <CardTitle className="text-base">Daftar Backup</CardTitle>
           <CardDescription>
-            Arsip yang diunduh berisi snapshot database (`.tar.gz`).
+            Arsip yang diunduh berisi snapshot database (.tar.gz).
           </CardDescription>
         </CardHeader>
         <CardContent>
@@ -231,7 +260,7 @@ export function BackupView() {
                           className="text-amber-500 border-amber-500/40 hover:bg-amber-500/10"
                           onClick={() => handleRestore(b)}
                           disabled={!!restoring}
-                          title="Restore data dari backup ini"
+                          title="Pulihkan data dari backup ini"
                         >
                           {restoring === b.filename ? (
                             <Loader2 className="h-3.5 w-3.5 animate-spin" />

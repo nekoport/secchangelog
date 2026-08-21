@@ -20,6 +20,7 @@ const configSchema = z.object({
 export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized();
+  if (session.user.role !== "ADMIN") return forbidden();
 
   try {
     const server = await NtpService.getServer();
@@ -32,7 +33,7 @@ export async function GET() {
         canSetTime: capability,
         hint: capability
           ? undefined
-          : "Kontainer tidak memiliki CAP_SYS_TIME. Tambahkan cap_add: [SYS_TIME] di docker-compose agar sync waktu bisa diterapkan.",
+          : "Sinkronisasi jam sistem dari aplikasi dinonaktifkan. Gunakan layanan NTP pada host.",
       },
       check,
     });

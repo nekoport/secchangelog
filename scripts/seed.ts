@@ -79,6 +79,7 @@ async function main() {
         passwordHash,
         role: "ADMIN",
         isActive: true,
+        isSystemAdmin: true,
       },
     });
     console.log(`✓ Created admin user: ${adminEmail}`);
@@ -86,6 +87,7 @@ async function main() {
     console.log(`  ⚠️  Password diambil dari env SEED_ADMIN_PASSWORD`);
     console.log(`  ⚠️  Ganti password setelah login pertama!`);
   } else {
+    await db.user.update({ where: { id: existingAdmin.id }, data: { isSystemAdmin: true } });
     console.log(`✓ Admin user already exists: ${adminEmail}`);
   }
 
@@ -119,6 +121,7 @@ async function main() {
   // 3. Seed default system settings
   const settings = [
     { key: "system.name", value: "SecChangeLog" },
+    { key: "system.footerText", value: "" },
     { key: "system.logoPath", value: "" },
     { key: "system.faviconPath", value: "" },
     { key: "system.defaultTheme", value: "dark" },

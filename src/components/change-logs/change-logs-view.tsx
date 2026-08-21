@@ -44,6 +44,7 @@ import {
 } from "lucide-react";
 import { toast } from "sonner";
 import { cn } from "@/lib/utils";
+import { DateInputId } from "@/components/shared/date-input-id";
 import { useSession } from "next-auth/react";
 import type { ViewType } from "@/components/layout/app-shell";
 import {
@@ -62,6 +63,7 @@ import { Label } from "@/components/ui/label";
 
 interface ChangeLog {
   id: string;
+  createdById: string;
   ticketId: string;
   deviceType: { id: string; name: string };
   deviceName: string;
@@ -75,7 +77,6 @@ interface ChangeLog {
   _count?: { screenshots: number };
   isDeleted?: boolean;
 }
-
 export function ChangeLogsView({
   onNavigate,
 }: {
@@ -103,8 +104,8 @@ export function ChangeLogsView({
   if (search) params.set("search", search);
   if (deviceTypeId) params.set("deviceTypeId", deviceTypeId);
   if (changeType) params.set("changeType", changeType);
-  if (from) params.set("from", new Date(from).toISOString());
-  if (to) params.set("to", new Date(to).toISOString());
+  if (from) params.set("from", new Date(`${from}T00:00:00.000`).toISOString());
+  if (to) params.set("to", new Date(`${to}T23:59:59.999`).toISOString());
   if (includeDeleted && (session?.user?.role === "ADMIN" || session?.user?.role === "AUDITOR")) {
     params.set("includeDeleted", "true");
   }
@@ -195,10 +196,10 @@ export function ChangeLogsView({
   };
 
   const canEdit = (log: ChangeLog) => {
-    // Any authenticated user can edit any log (recorded in audit trail)
-    if (!session?.user) return false;
-    if (log.isDeleted) return false;
-    return true;
+    if (!session?.user || log.isDeleted) return false;
+    if (session.user.role === "AUDITOR") return false;
+    if (session.user.role === "ADMIN") return true;
+    return log.createdById === session.user.id || log.pic.id === session.user.id;
   };
 
   return (
@@ -267,29 +268,13 @@ export function ChangeLogsView({
               <Label className="text-[10px] uppercase text-muted-foreground">
                 Dari Tanggal
               </Label>
-              <Input
-                type="date"
-                value={from}
-                onChange={(e) => {
-                  setFrom(e.target.value);
-                  setPage(1);
-                }}
-                className="text-xs"
-              />
+              <DateInputId value={from} onChange={(v) => { setFrom(v); setPage(1); }} aria-label="Dari tanggal (dd/MM/yyyy)" className="text-xs" />
             </div>
             <div className="space-y-1">
               <Label className="text-[10px] uppercase text-muted-foreground">
                 Sampai Tanggal
               </Label>
-              <Input
-                type="date"
-                value={to}
-                onChange={(e) => {
-                  setTo(e.target.value);
-                  setPage(1);
-                }}
-                className="text-xs"
-              />
+              <DateInputId value={to} onChange={(v) => { setTo(v); setPage(1); }} aria-label="Sampai tanggal (dd/MM/yyyy)" className="text-xs" />
             </div>
             {(from || to || search || deviceTypeId || changeType) && (
               <div className="flex items-end">
@@ -606,7 +591,7 @@ function ChangeLogDetailDialog({
       URL.revokeObjectURL(url);
       toast.success("PDF berhasil diunduh");
     } catch {
-      toast.error("Gagal export PDF");
+      toast.error("Gagal mengunduh PDF");
     }
   }
 
@@ -626,13 +611,13 @@ function ChangeLogDetailDialog({
       URL.revokeObjectURL(url);
       toast.success("Dokumen Word berhasil diunduh");
     } catch {
-      toast.error("Gagal export Word");
+      toast.error("Gagal mengunduh Word");
     }
   }
 
   return (
     <Dialog open onOpenChange={onClose}>
-      <DialogContent className="max-w-[1400px] w-[min(1400px,96vw)] sm:max-w-[1400px] max-h-[92vh] overflow-y-auto">
+      <DialogContent className="w-[94vw] max-w-[94vw] max-h-[89vh] overflow-y-auto bg-muted p-4 sm:w-[94vw] sm:max-w-[1120px] sm:p-6">
         <DialogHeader>
           <DialogTitle className="flex items-center justify-between gap-2 flex-wrap">
             <span>Detail Change Log</span>
@@ -645,11 +630,11 @@ function ChangeLogDetailDialog({
               )}
               <Button variant="outline" size="sm" onClick={handleExportPdf}>
                 <Download className="h-3.5 w-3.5 mr-1.5" />
-                Export PDF
+                Unduh PDF
               </Button>
               <Button variant="outline" size="sm" onClick={handleExportWord}>
                 <FileText className="h-3.5 w-3.5 mr-1.5" />
-                Export Word
+                Unduh Word
               </Button>
             </div>
           </DialogTitle>
@@ -668,7 +653,7 @@ function ChangeLogDetailDialog({
               </span>
             </div>
 
-            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-muted/30 rounded-md">
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-3 p-3 bg-background/50 rounded-md">
               <div>
                 <p className="text-[10px] uppercase text-muted-foreground">
                   Perangkat
@@ -707,19 +692,13 @@ function ChangeLogDetailDialog({
                 </p>
                 <p>{data.requestor || "-"}</p>
               </div>
-              <div>
-                <p className="text-[10px] uppercase text-muted-foreground">
-                  Pencatat
-                </p>
-                <p>{data.creator.name}</p>
-              </div>
             </div>
 
             <div>
               <p className="text-[10px] uppercase text-muted-foreground mb-1">
                 Permintaan
               </p>
-              <pre className="text-xs bg-muted/40 p-3 rounded-md whitespace-pre-wrap font-mono">
+              <pre className="text-xs bg-background/60 p-3 rounded-md whitespace-pre-wrap font-mono">
                 {data.descriptionBefore}
               </pre>
             </div>
@@ -727,7 +706,7 @@ function ChangeLogDetailDialog({
               <p className="text-[10px] uppercase text-muted-foreground mb-1">
                 Perubahan Konfigurasi
               </p>
-              <pre className="text-xs bg-muted/40 p-3 rounded-md whitespace-pre-wrap font-mono">
+              <pre className="text-xs bg-background/60 p-3 rounded-md whitespace-pre-wrap font-mono">
                 {data.descriptionAfter}
               </pre>
             </div>
@@ -740,9 +719,9 @@ function ChangeLogDetailDialog({
             {data.rollbackPlan && (
               <div>
                 <p className="text-[10px] uppercase text-muted-foreground mb-1">
-                  Rollback Plan
+                  Rencana Pemulihan
                 </p>
-                <pre className="text-xs bg-muted/40 p-3 rounded-md whitespace-pre-wrap font-mono">
+                <pre className="text-xs bg-background/60 p-3 rounded-md whitespace-pre-wrap font-mono">
                   {data.rollbackPlan}
                 </pre>
               </div>
@@ -752,7 +731,7 @@ function ChangeLogDetailDialog({
             {data.screenshots && data.screenshots.length > 0 && (
               <div>
                 <p className="text-[10px] uppercase text-muted-foreground mb-2">
-                  Bukti Screenshot ({data.screenshots.length})
+                  Dokumentasi Pendukung ({data.screenshots.length})
                 </p>
                 <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                   {data.screenshots.map((scr: { id: string; type: string; originalName: string; mimeType: string; }) => {

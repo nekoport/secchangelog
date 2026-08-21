@@ -12,6 +12,10 @@ import {
 import { rateLimit, getRateLimitKey } from "@/lib/security/rate-limit";
 import type { Role } from "@/lib/constants";
 import { authenticateLdap } from "@/lib/ldap";
+import { shouldInvalidateSession } from "@/lib/security/authorization";
+import { getAuthCookieName, isSecureAuthCookie } from "@/lib/security/auth-cookies";
+
+const authCookieProduction = process.env.NODE_ENV === "production";
 
 function getClientIpFromHeaders(headers?: Record<string, string | undefined>): string | null {
   if (!headers) return null;
@@ -65,7 +69,7 @@ export const authOptions: NextAuthOptions = {
 
         if (!user) {
           await AuditTrailService.log({
-            userId: "unknown",
+            userId: null,
             action: "LOGIN_FAILED",
             entityType: "User",
             entityId: identifier,
@@ -216,6 +220,8 @@ export const authOptions: NextAuthOptions = {
           email: user.email,
           name: user.name,
           role: user.role as Role,
+          sessionVersion: user.sessionVersion,
+          isSystemAdmin: user.isSystemAdmin,
         };
       },
     }),
@@ -232,13 +238,49 @@ export const authOptions: NextAuthOptions = {
       if (user) {
         token.id = user.id;
         token.role = user.role;
+        token.sessionVersion = user.sessionVersion;
+        token.isSystemAdmin = user.isSystemAdmin;
+        token.valid = true;
+        return token;
       }
+
+      if (!token.id) {
+        token.valid = false;
+        return token;
+      }
+
+      const currentUser = await db.user.findUnique({
+        where: { id: token.id },
+        select: { isActive: true, role: true, name: true, isSystemAdmin: true, sessionVersion: true },
+      });
+
+      if (
+        !currentUser ||
+        shouldInvalidateSession({
+          isActive: currentUser.isActive,
+          tokenSessionVersion: token.sessionVersion,
+          userSessionVersion: currentUser.sessionVersion,
+        })
+      ) {
+        token.valid = false;
+        return token;
+      }
+
+      token.role = currentUser.role as Role;
+      token.name = currentUser.name;
+      token.isSystemAdmin = currentUser.isSystemAdmin;
+      token.valid = true;
       return token;
     },
     async session({ session, token }) {
+      if (!token.valid || !token.id) {
+        return null as unknown as typeof session;
+      }
       if (session.user) {
         session.user.id = token.id;
         session.user.role = token.role;
+        if (token.name) session.user.name = token.name;
+        session.user.isSystemAdmin = Boolean(token.isSystemAdmin);
       }
       return session;
     },
@@ -250,30 +292,30 @@ export const authOptions: NextAuthOptions = {
   secret: process.env.NEXTAUTH_SECRET,
   cookies: {
     sessionToken: {
-      name: `__Host-next-auth.session-token`,
+      name: getAuthCookieName("session-token", authCookieProduction),
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: isSecureAuthCookie(authCookieProduction),
       },
     },
     csrfToken: {
-      name: `__Host-next-auth.csrf-token`,
+      name: getAuthCookieName("csrf-token", authCookieProduction),
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: isSecureAuthCookie(authCookieProduction),
       },
     },
     callbackUrl: {
-      name: `__Host-next-auth.callback-url`,
+      name: getAuthCookieName("callback-url", authCookieProduction),
       options: {
         httpOnly: true,
         sameSite: "lax",
         path: "/",
-        secure: process.env.NODE_ENV === "production",
+        secure: isSecureAuthCookie(authCookieProduction),
       },
     },
   },

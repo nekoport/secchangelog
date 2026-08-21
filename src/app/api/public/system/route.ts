@@ -1,5 +1,6 @@
 import { apiSuccess } from "@/lib/security/api-response";
 import { SystemSettingService } from "@/lib/services/system-setting.service";
+import { resolveFooterText } from "@/lib/security/footer-text";
 
 // Public (no-auth) endpoint for identity/branding info:
 // system name, logo, favicon, default theme.
@@ -10,5 +11,6 @@ export async function GET() {
     logoPath: all["system.logoPath"],
     faviconPath: all["system.faviconPath"],
     defaultTheme: all["system.defaultTheme"],
+    footerText: resolveFooterText(all["system.footerText"], all["system.name"] || "SecChangeLog"),
   });
 }

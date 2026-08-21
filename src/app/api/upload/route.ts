@@ -96,6 +96,13 @@ export async function POST(req: Request) {
     );
   } catch (err) {
     const msg = (err as Error).message;
+    if (msg === "UPLOAD_QUOTA_EXCEEDED") {
+      return apiError(
+        "UPLOAD_QUOTA_EXCEEDED",
+        "Batas upload sementara tercapai. Tautkan atau hapus screenshot sebelum mengunggah lagi.",
+        429
+      );
+    }
     if (msg.includes("melebihi") || msg.includes("Ukuran")) {
       return apiError("FILE_TOO_LARGE", msg, 413);
     }

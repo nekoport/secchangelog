@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { SessionProvider, useSession } from "next-auth/react";
+import { SessionProvider, signOut, useSession } from "next-auth/react";
 import { AppShell, type ViewType } from "@/components/layout/app-shell";
 import { DashboardView } from "@/components/dashboard/dashboard-view";
 import { ChangeLogsView } from "@/components/change-logs/change-logs-view";
@@ -13,6 +13,7 @@ import { UsersView } from "@/components/settings/users-view";
 import { SettingsView } from "@/components/settings/settings-view";
 import { ProfileView } from "@/components/settings/profile-view";
 import { useQuery } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 
 interface ViewState {
   view: ViewType;
@@ -20,8 +21,18 @@ interface ViewState {
 }
 
 function MainApp() {
-  const { status } = useSession();
+  const { data: session, status } = useSession();
+  const router = useRouter();
   const [state, setState] = useState<ViewState>({ view: "dashboard" });
+
+  useEffect(() => {
+    if (status === "authenticated" && !session?.user?.id) {
+      void signOut({ redirect: false }).finally(() => {
+        router.replace("/login");
+        router.refresh();
+      });
+    }
+  }, [router, session?.user?.id, status]);
 
   const navigate = (v: ViewType, editLogId?: string) => {
     setState({ view: v, editLogId });
@@ -36,11 +47,11 @@ function MainApp() {
       const json = await res.json();
       return json.meta?.total || 0;
     },
-    enabled: status === "authenticated",
+    enabled: status === "authenticated" && Boolean(session?.user?.id),
     refetchInterval: 30 * 1000,
   });
 
-  if (status === "loading") {
+  if (status === "loading" || (status === "authenticated" && !session?.user?.id)) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-background">
         <div className="text-sm text-muted-foreground">Memuat...</div>

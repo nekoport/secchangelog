@@ -22,6 +22,24 @@ const UPLOAD_DIR =
 
 const BACKUP_PREFIX = "secchangelog-backup";
 const BACKUP_EXT = ".tar.gz";
+const MAX_MEMBER_COUNT = 10_000;
+const MAX_UNCOMPRESSED_SIZE = 512 * 1024 * 1024;
+
+function validateArchiveEntries(names: string[], verboseLines: string[]) {
+  if (!names.length || names.length !== verboseLines.length || names.length > MAX_MEMBER_COUNT) throw new Error("invalid archive entries");
+  let total = 0;
+  for (let i = 0; i < names.length; i++) {
+    const type = verboseLines[i][0];
+    if (type !== "-" && type !== "d") throw new Error("unsafe archive type");
+    const size = Number(verboseLines[i].trim().split(/\s+/)[2]);
+    if (!Number.isSafeInteger(size) || size < 0 || (total += size) > MAX_UNCOMPRESSED_SIZE) throw new Error("archive exceeds uncompressed limit");
+    const name = names[i];
+    if (!name || name.includes("\\") || name.startsWith("/") || name.includes("\0")) throw new Error("unsafe archive path");
+    const clean = name.endsWith("/") ? name.slice(0, -1) : name;
+    if (clean.split("/").some((part) => !part || part === "." || part === "..") || (clean !== "secchangelog.db" && clean !== "uploads" && !clean.startsWith("uploads/"))) throw new Error("unsafe archive path");
+  }
+  if (!names.includes("secchangelog.db")) throw new Error("missing database");
+}
 
 function resolveDbPath(): string {
   const raw = process.env.DATABASE_URL || "";
@@ -37,7 +55,7 @@ function isValidFilename(filename: string): boolean {
     return false;
   }
   const re = new RegExp(
-    `^${BACKUP_PREFIX}-\\d{8}-\\d{6}${BACKUP_EXT.replace(/\./g, "\\.")}$`
+    `^${BACKUP_PREFIX}-\\d{8}-\\d{6}(?:-[a-z0-9]{6})?${BACKUP_EXT.replace(/\./g, "\\.")}$`
   );
   return re.test(filename);
 }
@@ -94,19 +112,19 @@ async function main() {
     await fs.mkdir(staging, { recursive: true });
 
     // Guard against path traversal: only accept expected archive members.
-    const { stdout } = await execFileAsync("tar", ["-tzf", archive]);
+    const { stdout } = await execFileAsync("tar", ["-tvzf", archive]);
     const members = stdout.split("\n").filter(Boolean);
-    for (const m of members) {
-      const ok = m === "secchangelog.db" || m.startsWith("uploads/");
-      if (!ok || m.includes("..") || m.startsWith("/")) {
-        throw new Error("unsafe archive member: " + m);
-      }
-    }
+    const { stdout: namesOutput } = await execFileAsync("tar", ["-tzf", archive]);
+    const names = namesOutput.split(/\r?\n/).filter(Boolean);
+    validateArchiveEntries(names, members);
 
-    await execFileAsync("tar", ["-xzf", archive, "-C", staging]);
+    await execFileAsync("tar", ["--no-same-owner", "--no-same-permissions", "-xzf", archive, "-C", staging]);
 
     const snapshotPath = path.join(staging, "secchangelog.db");
-    await fs.access(snapshotPath);
+    const snapshotStat = await fs.lstat(snapshotPath);
+    if (!snapshotStat.isFile()) throw new Error("database snapshot is not a regular file");
+    const probe = await fs.open(snapshotPath, "r");
+    try { const header = Buffer.alloc(16); await probe.read(header, 0, 16, 0); if (header.toString("ascii") !== "SQLite format 3\0") throw new Error("invalid sqlite header"); } finally { await probe.close(); }
 
     const integrityOk = await checkIntegrity(snapshotPath);
     if (!integrityOk) {

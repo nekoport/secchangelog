@@ -9,7 +9,16 @@ import {
   safeJoinPath,
 } from "@/lib/security/file-validation";
 import { AuditTrailService } from "./audit-trail.service";
-import type { ScreenshotType } from "@/lib/constants";
+import {
+  MAX_ORPHAN_SCREENSHOTS_PER_USER,
+  MAX_ORPHAN_UPLOAD_BYTES_PER_USER,
+  ORPHAN_SCREENSHOT_TTL_MS,
+  type ScreenshotType,
+} from "@/lib/constants";
+import {
+  canDeleteScreenshot,
+  type AppRole,
+} from "@/lib/security/authorization";
 
 const UPLOAD_BASE =
   process.env.UPLOAD_DIR || path.join(process.cwd(), "public", "uploads");
@@ -46,6 +55,20 @@ export class FileStorageService {
       throw new Error(sizeCheck.error || "File terlalu besar");
     }
 
+    await this.cleanupOrphanScreenshots(userId);
+    const orphanUsage = await db.screenshot.aggregate({
+      where: { uploadedById: userId, changeLogId: null },
+      _count: { _all: true },
+      _sum: { size: true },
+    });
+    if (
+      orphanUsage._count._all >= MAX_ORPHAN_SCREENSHOTS_PER_USER ||
+      (orphanUsage._sum.size || 0) + buffer.length >
+        MAX_ORPHAN_UPLOAD_BYTES_PER_USER
+    ) {
+      throw new Error("UPLOAD_QUOTA_EXCEEDED");
+    }
+
     const safeName = generateSafeFilename(originalName);
     const filePath = safeJoinPath(SCREENSHOTS_DIR, safeName);
 
@@ -53,16 +76,23 @@ export class FileStorageService {
     await fs.writeFile(filePath, buffer);
 
     // Create DB record (changeLogId nullable - will be linked when change log created)
-    const screenshot = await db.screenshot.create({
-      data: {
-        changeLogId: null, // will be linked when change log is created
-        filename: safeName,
-        originalName: sanitizeFilename(originalName),
-        mimeType: declaredMimeType,
-        size: buffer.length,
-        type,
-      },
-    });
+    let screenshot;
+    try {
+      screenshot = await db.screenshot.create({
+        data: {
+          changeLogId: null, // will be linked when change log is created
+          uploadedById: userId,
+          filename: safeName,
+          originalName: sanitizeFilename(originalName),
+          mimeType: declaredMimeType,
+          size: buffer.length,
+          type,
+        },
+      });
+    } catch (err) {
+      await fs.unlink(filePath).catch(() => {});
+      throw err;
+    }
 
     await AuditTrailService.log({
       userId,
@@ -102,10 +132,26 @@ export class FileStorageService {
   static async deleteScreenshot(
     id: string,
     userId: string,
+    userRole: AppRole,
     requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
   ) {
-    const screenshot = await db.screenshot.findUnique({ where: { id } });
+    const screenshot = await db.screenshot.findUnique({
+      where: { id },
+      include: {
+        changeLog: { select: { createdById: true } },
+      },
+    });
     if (!screenshot) throw new Error("NOT_FOUND");
+    if (
+      !canDeleteScreenshot({
+        role: userRole,
+        userId,
+        uploadedById: screenshot.uploadedById,
+        changeLogCreatedById: screenshot.changeLog?.createdById || null,
+      })
+    ) {
+      throw new Error("FORBIDDEN");
+    }
 
     // Delete file
     const filePath = safeJoinPath(SCREENSHOTS_DIR, screenshot.filename);
@@ -126,6 +172,26 @@ export class FileStorageService {
       metadata: { filename: screenshot.filename },
       ipAddress: requestInfo?.ipAddress,
       userAgent: requestInfo?.userAgent,
+    });
+  }
+
+  private static async cleanupOrphanScreenshots(userId: string) {
+    const expired = await db.screenshot.findMany({
+      where: {
+        uploadedById: userId,
+        changeLogId: null,
+        createdAt: { lt: new Date(Date.now() - ORPHAN_SCREENSHOT_TTL_MS) },
+      },
+      select: { id: true, filename: true },
+    });
+    if (expired.length === 0) return;
+
+    for (const screenshot of expired) {
+      const filePath = safeJoinPath(SCREENSHOTS_DIR, screenshot.filename);
+      await fs.unlink(filePath).catch(() => {});
+    }
+    await db.screenshot.deleteMany({
+      where: { id: { in: expired.map((screenshot) => screenshot.id) } },
     });
   }
 

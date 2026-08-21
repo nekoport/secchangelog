@@ -108,6 +108,38 @@ async function loadImageForPdf(
   }
 }
 
+/** Flatten transparent logos onto a contrasting tile so white and dark marks remain legible. */
+async function normalizeLogo(buf: Buffer): Promise<Buffer> {
+  const sharp = (await import("sharp")).default;
+  const { data, info } = await sharp(buf).ensureAlpha().raw().toBuffer({ resolveWithObject: true });
+  let luminance = 0;
+  let weight = 0;
+  for (let i = 0; i < data.length; i += info.channels) {
+    const alpha = data[i + 3] / 255;
+    if (alpha > 0.05) { luminance += (0.2126 * data[i] + 0.7152 * data[i + 1] + 0.0722 * data[i + 2]) * alpha; weight += alpha; }
+  }
+  const bg = weight && luminance / weight > 160 ? "#243447" : "#f1f5f9";
+  const meta = await sharp(buf).metadata();
+  const side = Math.max(meta.width || 1, meta.height || 1);
+  return sharp(buf).flatten({ background: bg }).extend({
+    top: Math.floor((side - (meta.height || side)) / 2),
+    bottom: Math.ceil((side - (meta.height || side)) / 2),
+    left: Math.floor((side - (meta.width || side)) / 2),
+    right: Math.ceil((side - (meta.width || side)) / 2),
+    background: bg,
+  }).png().toBuffer();
+}
+
+export function splitReportText(value: string): string[] {
+  return String(value || "-").replace(/\r\n?/g, "\n").split("\n");
+}
+
+function formatScreenshotCaption(type: string, originalName: string): string {
+  const label = type === "AFTER" ? "Setelah Perubahan" : type === "BEFORE" ? "Sebelum Perubahan" : "Dokumentasi";
+  const cleanName = originalName.replace(/^(?:BEFORE|AFTER|OTHER)\s*[-_]\s*/i, "");
+  return `${label} - ${cleanName}`;
+}
+
 // WIB = UTC+7 (fixed offset, no DST)
 const WIB_OFFSET_MS = 7 * 60 * 60 * 1000;
 const MONTHS_ID = [
@@ -257,6 +289,7 @@ export class ExportService {
     changeLogId: string,
     userId: string,
     systemName: string,
+    footerText: string,
     logoPath?: string,
     requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
   ): Promise<Buffer> {
@@ -289,10 +322,11 @@ export class ExportService {
       const doc = new PDFDocument({
         size: "A4",
         margin: 50,
+        bufferPages: true,
         info: {
           Title: `Change Log ${log.ticketId}`,
           Author: systemName,
-          Subject: "Configuration Change Report",
+          Subject: "Laporan Perubahan Konfigurasi",
         },
       });
 
@@ -316,14 +350,9 @@ export class ExportService {
             process.env.UPLOAD_DIR ||
             path.join(process.cwd(), "public", "uploads");
           const logoFullPath = path.join(uploadBase, "logos", logoName);
-          const logoBuffer = await fs.readFile(logoFullPath);
+          const logoBuffer = await normalizeLogo(await fs.readFile(logoFullPath));
           // Determine image type
-          if (logoName.endsWith(".png")) {
-            doc.image(logoBuffer, 50, 50, { width: 60, height: 60 });
-          } else if (
-            logoName.endsWith(".jpg") ||
-            logoName.endsWith(".jpeg")
-          ) {
+          if (logoName.endsWith(".png") || logoName.endsWith(".jpg") || logoName.endsWith(".jpeg")) {
             doc.image(logoBuffer, 50, 50, { width: 60, height: 60 });
           }
           // SVG not supported by pdfkit directly - skip
@@ -342,7 +371,7 @@ export class ExportService {
         .fontSize(10)
         .font("Helvetica")
         .fillColor("#666")
-        .text("Configuration Change Report", logoOffsetX, 80);
+        .text("Laporan Perubahan Konfigurasi", logoOffsetX, 80);
 
       doc.fillColor("#000");
 
@@ -365,7 +394,7 @@ export class ExportService {
         .font("Helvetica")
         .fillColor("#666")
         .text(
-          `Generated: ${formatWibDateTime(new Date())}`,
+          `Dibuat pada: ${formatWibDateTime(new Date())}`,
           50,
           165
         );
@@ -396,8 +425,6 @@ export class ExportService {
         ["Jenis Perubahan", log.changeType],
         ["Pemohon", log.requestor || "-"],
         ["PIC", log.pic.name],
-        ["Pencatat", log.creator.name],
-        ["Risk Level", log.riskLevel || "-"],
         ["Waktu Implementasi", formatWibDateId(log.implementedAt)],
       ];
 
@@ -443,21 +470,21 @@ export class ExportService {
 
       // Section 3: Reason & Rollback
       y = ensureSpace(y, 34);
-      y = this.drawSectionTitle(doc, "Keterangan & Rollback Plan", 50, y);
+      y = this.drawSectionTitle(doc, "Keterangan & Rencana Pemulihan", 50, y);
       y += 10;
 
       y = ensureSpace(y, 24);
       doc.font("Helvetica-Bold").fontSize(9).text("KETERANGAN:", 50, y);
       y += 14;
       y = ensureSpace(y, 24);
-      doc.font("Helvetica").fontSize(9).text(log.reason, 50, y, {
+      doc.font("Helvetica").fontSize(9).text(log.reason || "-", 50, y, {
         width: pageWidth,
         lineGap: 4,
       });
       y = (doc.y as number) + 14;
 
       y = ensureSpace(y, 24);
-      doc.font("Helvetica-Bold").fontSize(9).text("ROLLBACK PLAN:", 50, y);
+      doc.font("Helvetica-Bold").fontSize(9).text("RENCANA PEMULIHAN:", 50, y);
       y += 14;
       y = ensureSpace(y, 24);
       doc.font("Helvetica").fontSize(9).text(log.rollbackPlan || "-", 50, y, {
@@ -469,7 +496,7 @@ export class ExportService {
       // Section 4: Screenshots
       if (log.screenshots.length > 0) {
         y = ensureSpace(y, 34);
-        y = this.drawSectionTitle(doc, "Bukti Screenshot", 50, y);
+        y = this.drawSectionTitle(doc, "Dokumentasi Pendukung", 50, y);
         y += 10;
 
         for (const scr of log.screenshots) {
@@ -500,7 +527,7 @@ export class ExportService {
             // file missing / unreadable -> placeholder below
           }
 
-          const caption = `${scr.type} - ${scr.originalName}`;
+          const caption = formatScreenshotCaption(scr.type, scr.originalName);
           // Measure the actual caption height so wrapped captions don't overlap.
           const captionH = doc.heightOfString(caption, { width: pageWidth });
           const blockH = (dispH ?? 20) + captionH + 8 + 20;
@@ -543,16 +570,21 @@ export class ExportService {
       const pageStart = range.start;
       for (let i = 0; i < totalPages; i++) {
         doc.switchToPage(pageStart + i);
+        // Footer lives below the normal content margin; disable automatic
+        // page breaking while writing it, otherwise PDFKit creates blank pages.
+        const previousBottomMargin = doc.page.margins.bottom;
+        doc.page.margins.bottom = 0;
         doc
           .fontSize(8)
           .font("Helvetica")
           .fillColor("#999")
           .text(
-            `${systemName} - ${log.ticketId} | Halaman ${i + 1} dari ${totalPages}`,
+            `${footerText} | ${log.ticketId} | Halaman ${i + 1} dari ${totalPages}`,
             50,
-            doc.page.height - 40,
-            { width: pageWidth, align: "center" }
+            doc.page.height - 38,
+            { width: pageWidth, align: "center", lineBreak: false }
           );
+        doc.page.margins.bottom = previousBottomMargin;
       }
 
       doc.end();
@@ -576,6 +608,7 @@ export class ExportService {
     changeLogId: string,
     userId: string,
     systemName: string,
+    footerText: string,
     logoPath?: string,
     requestInfo?: { ipAddress?: string | null; userAgent?: string | null }
   ): Promise<Buffer> {
@@ -599,6 +632,8 @@ export class ExportService {
       HeadingLevel,
       AlignmentType,
       ImageRun,
+      Footer,
+      PageNumber,
     } = await import("docx");
     const fs = await import("fs/promises");
     const path = await import("path");
@@ -622,27 +657,14 @@ export class ExportService {
       try {
         const logoName = logoPath.split("?")[0].split("/").pop() || "";
         const logoFullPath = path.join(uploadBase, "logos", logoName);
-        const logoBuffer = await fs.readFile(logoFullPath);
-        if (logoName.endsWith(".png")) {
+        const logoBuffer = await normalizeLogo(await fs.readFile(logoFullPath));
+        if (logoName.endsWith(".png") || logoName.endsWith(".jpg") || logoName.endsWith(".jpeg")) {
           children.push(
             new Paragraph({
               alignment: AlignmentType.CENTER,
               children: [
                 new ImageRun({
                   type: "png",
-                  data: logoBuffer,
-                  transformation: { width: 60, height: 60 },
-                }),
-              ],
-            })
-          );
-        } else if (logoName.endsWith(".jpg") || logoName.endsWith(".jpeg")) {
-          children.push(
-            new Paragraph({
-              alignment: AlignmentType.CENTER,
-              children: [
-                new ImageRun({
-                  type: "jpg",
                   data: logoBuffer,
                   transformation: { width: 60, height: 60 },
                 }),
@@ -668,7 +690,7 @@ export class ExportService {
         alignment: AlignmentType.CENTER,
         children: [
           new TextRun({
-            text: "Configuration Change Report",
+            text: "Laporan Perubahan Konfigurasi",
             size: 22,
             color: "666666",
           }),
@@ -689,7 +711,7 @@ export class ExportService {
       new Paragraph({
         children: [
           new TextRun({
-            text: `Generated: ${formatWibDateTime(new Date())}`,
+            text: `Dibuat pada: ${formatWibDateTime(new Date())}`,
             size: 20,
             color: "666666",
           }),
@@ -713,7 +735,6 @@ export class ExportService {
       ["Jenis Perubahan", log.changeType],
       ["Pemohon", log.requestor || "-"],
       ["PIC", log.pic.name],
-      ["Pencatat", log.creator.name],
       ["Waktu Implementasi", formatWibDateId(log.implementedAt)],
     ];
     for (const [label, value] of infoRows) {
@@ -734,20 +755,20 @@ export class ExportService {
         children: [new TextRun({ text: "PERMINTAAN:", bold: true })],
       })
     );
-    children.push(new Paragraph({ text: log.descriptionBefore, spacing: { after: 200 } }));
+    for (const line of splitReportText(log.descriptionBefore)) children.push(new Paragraph({ text: line || " ", spacing: { after: 60 } }));
     children.push(
       new Paragraph({
         children: [new TextRun({ text: "PERUBAHAN KONFIGURASI:", bold: true })],
       })
     );
-    children.push(new Paragraph({ text: log.descriptionAfter, spacing: { after: 200 } }));
+    for (const line of splitReportText(log.descriptionAfter)) children.push(new Paragraph({ text: line || " ", spacing: { after: 60 } }));
 
-    // Section 3: Keterangan & Rollback Plan
+    // Section 3: Keterangan & Rencana Pemulihan
     children.push(
       new Paragraph({
         heading: HeadingLevel.HEADING_2,
         spacing: { before: 300, after: 200 },
-        children: [new TextRun("Keterangan & Rollback Plan")],
+        children: [new TextRun("Keterangan & Rencana Pemulihan")],
       })
     );
     children.push(
@@ -755,13 +776,13 @@ export class ExportService {
         children: [new TextRun({ text: "KETERANGAN:", bold: true })],
       })
     );
-    children.push(new Paragraph({ text: log.reason, spacing: { after: 200 } }));
+    for (const line of splitReportText(log.reason || "-")) children.push(new Paragraph({ text: line || "-", spacing: { after: 60 } }));
     children.push(
       new Paragraph({
-        children: [new TextRun({ text: "ROLLBACK PLAN:", bold: true })],
+        children: [new TextRun({ text: "RENCANA PEMULIHAN:", bold: true })],
       })
     );
-    children.push(new Paragraph({ text: log.rollbackPlan || "-" }));
+    for (const line of splitReportText(log.rollbackPlan || "-")) children.push(new Paragraph({ text: line || " ", spacing: { after: 60 } }));
 
     // Section 4: Screenshots
     if (log.screenshots.length > 0) {
@@ -769,7 +790,7 @@ export class ExportService {
         new Paragraph({
           heading: HeadingLevel.HEADING_2,
           spacing: { before: 300, after: 200 },
-          children: [new TextRun("Bukti Screenshot")],
+          children: [new TextRun("Dokumentasi Pendukung")],
         })
       );
 
@@ -799,7 +820,7 @@ export class ExportService {
             new Paragraph({
               spacing: { before: 200, after: 100 },
               children: [
-                new TextRun({ text: `${scr.type} - ${scr.originalName}`, bold: true, size: 20 }),
+                new TextRun({ text: formatScreenshotCaption(scr.type, scr.originalName), bold: true, size: 20 }),
               ],
             })
           );
@@ -826,7 +847,7 @@ export class ExportService {
     }
 
     const doc = new Document({
-      sections: [{ children }],
+      sections: [{ children, properties: { page: { size: { width: 11906, height: 16838 }, margin: { top: 900, right: 900, bottom: 900, left: 900 } } }, footers: { default: new Footer({ children: [new Paragraph({ alignment: AlignmentType.CENTER, children: [new TextRun(`${footerText} | Halaman `), new TextRun({ children: [PageNumber.CURRENT] }), new TextRun(" dari "), new TextRun({ children: [PageNumber.TOTAL_PAGES] })] })] }) } }],
       styles: {
         default: {
           document: {

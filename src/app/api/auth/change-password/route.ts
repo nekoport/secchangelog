@@ -43,6 +43,7 @@ export async function POST(req: Request) {
 
   const user = await db.user.findUnique({ where: { id: session.user.id } });
   if (!user) return unauthorized();
+  if (user.isSystemAdmin) return apiError("FORBIDDEN", "Password System Administrator hanya dapat diubah melalui backend.", 403);
   if (!user.passwordHash) {
     return apiError("FORBIDDEN", "User ini menggunakan LDAP, tidak bisa ganti password lokal", 403);
   }
@@ -56,7 +57,10 @@ export async function POST(req: Request) {
   const newHash = await hashPassword(parsed.data.newPassword);
   await db.user.update({
     where: { id: user.id },
-    data: { passwordHash: newHash },
+    data: {
+      passwordHash: newHash,
+      sessionVersion: { increment: 1 },
+    },
   });
 
   await AuditTrailService.log({

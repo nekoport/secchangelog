@@ -2,6 +2,7 @@ import { z } from "zod";
 
 export const updateSettingsSchema = z.object({
   "system.name": z.string().min(1).max(100).optional(),
+  "system.footerText": z.string().max(200).optional(),
   "system.defaultTheme": z.enum(["light", "dark"]).optional(),
   "ldap.enabled": z.enum(["true", "false"]).optional(),
   "ldap.url": z.string().max(255).optional().or(z.literal("")),

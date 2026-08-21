@@ -25,6 +25,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Upload, X, FileText, Image as ImageIcon, Loader2, Check } from "lucide-react";
 import { toast } from "sonner";
+import { DateTimeInputId } from "@/components/shared/date-input-id";
 import { SCREENSHOT_TYPES } from "@/lib/constants";
 import type { ViewType } from "@/components/layout/app-shell";
 import { cn } from "@/lib/utils";
@@ -357,7 +358,7 @@ export function NewLogView({
             </div>
             <div className="space-y-2">
               <Label htmlFor="reason">
-                Keterangan <span className="text-destructive">*</span>
+                Keterangan <span className="text-muted-foreground">(opsional)</span>
               </Label>
               <Textarea
                 id="reason"
@@ -365,21 +366,13 @@ export function NewLogView({
                 onChange={(e) => setReason(e.target.value)}
                 placeholder="Berikan keterangan terkait perubahan ini..."
                 rows={3}
-                required
-                minLength={10}
               />
             </div>
             <div className="space-y-2">
               <Label htmlFor="implementedAt">
                 Waktu Implementasi <span className="text-destructive">*</span>
               </Label>
-              <Input
-                id="implementedAt"
-                type="datetime-local"
-                value={implementedAt}
-                onChange={(e) => setImplementedAt(e.target.value)}
-                required
-              />
+              <DateTimeInputId id="implementedAt" value={implementedAt} onChange={setImplementedAt} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="rollbackPlan">Rollback Plan</Label>

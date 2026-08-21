@@ -27,10 +27,12 @@ model User {
   name            String
   passwordHash    String?
   role            String    @default("ENGINEER") // ENGINEER | SUPERVISOR | ADMIN | AUDITOR
+  isSystemAdmin   Boolean   @default(false)
   ldapDn          String?
   isActive        Boolean   @default(true)
   failedAttempts  Int       @default(0)
   lockedUntil     DateTime?
+  sessionVersion  Int       @default(0)
   lastLoginAt     DateTime?
   lastLoginIp     String?
   createdAt       DateTime  @default(now())
@@ -44,6 +46,7 @@ model User {
   deleteRequestsRequested DeleteRequest[] @relation("DeleteRequestRequested")
   deleteRequestsApproved  DeleteRequest[] @relation("DeleteRequestApproved")
   auditTrails     AuditTrail[]
+  screenshotsUploaded Screenshot[] @relation("ScreenshotUploader")
   settingsUpdated SystemSetting[]
 
   @@index([role])
@@ -171,11 +174,14 @@ model Screenshot {
   mimeType      String
   size          Int
   type          String   // BEFORE | AFTER | OTHER
+  uploadedById  String?
   createdAt     DateTime @default(now())
 
   changeLog ChangeLog? @relation(fields: [changeLogId], references: [id], onDelete: Cascade)
+  uploadedBy User? @relation("ScreenshotUploader", fields: [uploadedById], references: [id], onDelete: SetNull)
 
   @@index([changeLogId, type])
+  @@index([uploadedById, changeLogId, createdAt])
 }
 
 model DeleteRequest {
@@ -201,7 +207,7 @@ model DeleteRequest {
 
 model AuditTrail {
   id         String   @id @default(cuid())
-  userId     String
+  userId     String?
   action     String
   entityType String
   entityId   String
@@ -210,7 +216,7 @@ model AuditTrail {
   userAgent  String?
   timestamp  DateTime @default(now())
 
-  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
 
   @@index([userId, timestamp])
   @@index([entityType, entityId])

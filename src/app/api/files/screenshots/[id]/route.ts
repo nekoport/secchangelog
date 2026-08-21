@@ -1,7 +1,13 @@
 import { getServerSession } from "next-auth";
+import { NextResponse } from "next/server";
 import { authOptions } from "@/lib/auth-options";
 import { FileStorageService } from "@/lib/services/file-storage.service";
-import { unauthorized, notFound, internalError } from "@/lib/security/api-response";
+import {
+  unauthorized,
+  forbidden,
+  notFound,
+  internalError,
+} from "@/lib/security/api-response";
 
 export async function GET(
   req: Request,
@@ -44,6 +50,7 @@ export async function DELETE(
     await FileStorageService.deleteScreenshot(
       id,
       session.user.id,
+      session.user.role,
       {
         ipAddress: req.headers.get("x-forwarded-for"),
         userAgent: req.headers.get("user-agent"),
@@ -53,9 +60,8 @@ export async function DELETE(
   } catch (err) {
     const msg = (err as Error).message;
     if (msg === "NOT_FOUND") return notFound();
+    if (msg === "FORBIDDEN") return forbidden();
     console.error("[API files/screenshots/[id] DELETE]:", err);
     return internalError();
   }
 }
-
-import { NextResponse } from "next/server";

@@ -4,6 +4,7 @@ import {
   apiSuccess,
   validationError,
   unauthorized,
+  forbidden,
   notFound,
   apiError,
   internalError,
@@ -58,6 +59,7 @@ export async function PATCH(
       id,
       parsed.data,
       session.user.id,
+      session.user.role,
       {
         ipAddress: getClientIp(req),
         userAgent: req.headers.get("user-agent"),
@@ -67,6 +69,7 @@ export async function PATCH(
   } catch (err) {
     const msg = (err as Error).message;
     if (msg === "NOT_FOUND") return notFound();
+    if (msg === "FORBIDDEN") return forbidden();
     console.error("[API change-logs/[id] PATCH]:", err);
     return internalError();
   }

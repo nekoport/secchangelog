@@ -14,6 +14,7 @@ import { updateUserSchema } from "@/lib/validations/user";
 import { hashPassword } from "@/lib/security/password";
 import { AuditTrailService } from "@/lib/services/audit-trail.service";
 import { getClientIp } from "@/lib/security/rate-limit";
+import { canModifySystemAdmin } from "@/lib/security/authorization";
 
 export async function PATCH(
   req: Request,
@@ -39,26 +40,18 @@ export async function PATCH(
 
   const existing = await db.user.findUnique({ where: { id } });
   if (!existing) return notFound("User tidak ditemukan");
-
-  // Lock the ADMIN role: an administrator can never change their own role,
-  // and the ADMIN role cannot be removed from any account that holds it.
-  if (existing.role === "ADMIN" && parsed.data.role && parsed.data.role !== "ADMIN") {
-    return conflict(
-      "Role ADMIN tidak dapat diubah. Gunakan akun lain untuk administrasi.",
-      "ADMIN_ROLE_LOCKED"
-    );
+  const requestedFields = Object.keys(parsed.data).filter((field) => parsed.data[field as keyof typeof parsed.data] !== undefined);
+  if (!canModifySystemAdmin({ isSystemAdmin: existing.isSystemAdmin, fields: requestedFields })) {
+    return conflict("Akun System Administrator hanya dapat diubah namanya.", "SYSTEM_ADMIN_LOCKED");
   }
+
+  // An administrator cannot remove their own access. Other ADMIN accounts are
+  // managed like regular accounts; only isSystemAdmin is permanently locked.
   if (id === session.user.id && parsed.data.role && parsed.data.role !== "ADMIN") {
     return conflict("Tidak bisa mengubah role akun sendiri", "SELF_ROLE_CHANGE");
   }
   if (parsed.data.role === "ADMIN" && !existing.role) {
     // no-op, role always present; guard for clarity
-  }
-  if (existing.role === "ADMIN" && parsed.data.isActive === false) {
-    return conflict(
-      "Akun dengan role ADMIN tidak dapat dinonaktifkan.",
-      "ADMIN_ROLE_LOCKED"
-    );
   }
   if (id === session.user.id && parsed.data.isActive === false) {
     return conflict("Tidak bisa menonaktifkan akun sendiri", "SELF_DEACTIVATE");
@@ -82,6 +75,13 @@ export async function PATCH(
   if (parsed.data.password) {
     updateData.passwordHash = await hashPassword(parsed.data.password);
   }
+  if (
+    parsed.data.password ||
+    parsed.data.role !== undefined ||
+    parsed.data.isActive !== undefined
+  ) {
+    updateData.sessionVersion = { increment: 1 };
+  }
 
   const updated = await db.user.update({
     where: { id },
@@ -94,6 +94,7 @@ export async function PATCH(
       role: true,
       ldapDn: true,
       isActive: true,
+      isSystemAdmin: true,
       updatedAt: true,
     },
   });
@@ -130,12 +131,7 @@ export async function DELETE(
   const existing = await db.user.findUnique({ where: { id } });
   if (!existing) return notFound();
 
-  if (existing.role === "ADMIN") {
-    return conflict(
-      "Akun dengan role ADMIN tidak dapat dihapus.",
-      "ADMIN_ROLE_LOCKED"
-    );
-  }
+  if (existing.isSystemAdmin) return conflict("Akun System Administrator tidak dapat dihapus.", "SYSTEM_ADMIN_LOCKED");
 
   // Prefer hard-delete, but only when the user has no history that still
   // references them (ChangeLog pic/creator, DeleteRequest, SystemSetting).
@@ -155,7 +151,10 @@ export async function DELETE(
   if (historyCount > 0) {
     await db.user.update({
       where: { id },
-      data: { isActive: false },
+      data: {
+        isActive: false,
+        sessionVersion: { increment: 1 },
+      },
     });
 
     await AuditTrailService.log({

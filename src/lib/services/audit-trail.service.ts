@@ -2,7 +2,7 @@ import { db } from "@/lib/db";
 import type { AuditAction } from "@/lib/constants";
 
 interface AuditLogParams {
-  userId: string;
+  userId: string | null;
   action: AuditAction | string;
   entityType: string;
   entityId: string;
@@ -13,7 +13,7 @@ interface AuditLogParams {
 
 interface AuditListItem {
   id: string;
-  userId: string;
+  userId: string | null;
   action: string;
   entityType: string;
   entityId: string;
@@ -343,6 +343,10 @@ export class AuditTrailService {
         return fmt(m.filename)
           ? `Membuat backup database (${fmt(m.filename)})`
           : "Membuat backup database";
+      case "UPLOAD_DATABASE_BACKUP":
+        return fmt(m.filename)
+          ? `Mengunggah arsip backup (${fmt(m.filename)})`
+          : "Mengunggah arsip backup";
       case "DOWNLOAD_DATABASE_BACKUP":
         return `Download backup database (${fmt(m.filename)})`;
       case "DELETE_DATABASE_BACKUP":

@@ -12,6 +12,7 @@ import { SystemSettingService } from "@/lib/services/system-setting.service";
 import { AuditTrailService } from "@/lib/services/audit-trail.service";
 import { getClientIp } from "@/lib/security/rate-limit";
 import { encryptSecret, isLdapEncryptionConfigured } from "@/lib/security/ldap-crypto";
+import { canManageSystemSettings } from "@/lib/security/authorization";
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -50,6 +51,7 @@ export async function GET() {
 export async function PATCH(req: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user) return unauthorized();
+  if (!canManageSystemSettings(session.user.role)) return forbidden();
 
   let body: unknown;
   try {
@@ -65,14 +67,6 @@ export async function PATCH(req: Request) {
   if (!parsed.success) return validationError(parsed.error);
 
   const data = parsed.data;
-
-  // Non-admin users may only change the system default theme
-  if (session.user.role !== "ADMIN") {
-    const keys = Object.keys(data);
-    const onlyTheme =
-      keys.length === 1 && keys[0] === "system.defaultTheme";
-    if (!onlyTheme) return forbidden();
-  }
 
   // Skip bindPassword if it's the mask value
   if (data["ldap.bindPassword"] === "********") {

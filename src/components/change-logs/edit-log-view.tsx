@@ -24,6 +24,7 @@ import {
 import { Badge } from "@/components/ui/badge";
 import { Upload, X, FileText, Image as ImageIcon, Loader2, Save, AlertCircle } from "lucide-react";
 import { toast } from "sonner";
+import { DateTimeInputId } from "@/components/shared/date-input-id";
 import { SCREENSHOT_TYPES } from "@/lib/constants";
 import type { ViewType } from "@/components/layout/app-shell";
 import { cn } from "@/lib/utils";
@@ -416,26 +417,19 @@ export function EditLogView({
             </div>
             <div className="space-y-2">
               <Label>
-                Keterangan <span className="text-destructive">*</span>
+                Keterangan <span className="text-muted-foreground">(opsional)</span>
               </Label>
               <Textarea
                 value={reason}
                 onChange={(e) => setReason(e.target.value)}
                 rows={3}
-                required
-                minLength={10}
               />
             </div>
             <div className="space-y-2">
               <Label>
                 Waktu Implementasi <span className="text-destructive">*</span>
               </Label>
-              <Input
-                type="datetime-local"
-                value={implementedAt}
-                onChange={(e) => setImplementedAt(e.target.value)}
-                required
-              />
+              <DateTimeInputId value={implementedAt} onChange={setImplementedAt} required />
             </div>
             <div className="space-y-2">
               <Label>Rollback Plan</Label>

@@ -16,13 +16,13 @@ import { useQueryClient } from "@tanstack/react-query";
 export function ThemeToggle() {
   const { theme, setTheme } = useTheme();
   const isClient = useIsClient();
-  const { status } = useSession();
+  const { data: session } = useSession();
   const qc = useQueryClient();
 
   function applyTheme(next: "light" | "dark") {
     setTheme(next);
-    // Persist as the system default theme so the whole app stays in sync.
-    if (status === "authenticated") {
+    // Only administrators may change the system-wide default theme.
+    if (session?.user?.role === "ADMIN") {
       fetch("/api/admin/settings", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },

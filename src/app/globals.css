@@ -6,8 +6,8 @@
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-geist-sans);
-  --font-mono: var(--font-geist-mono);
+  --font-sans: var(--font-interface);
+  --font-mono: var(--font-data);
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -37,12 +37,10 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) - 4px);
-  --radius-md: calc(var(--radius) - 2px);
+  --radius-sm: calc(var(--radius) - 3px);
+  --radius-md: calc(var(--radius) - 1px);
   --radius-lg: var(--radius);
-  --radius-xl: calc(var(--radius) + 4px);
-
-  /* Cyber security accent colors */
+  --radius-xl: calc(var(--radius) + 3px);
   --color-cyber-critical: var(--critical);
   --color-cyber-high: var(--high);
   --color-cyber-medium: var(--medium);
@@ -50,159 +48,186 @@
   --color-cyber-info: var(--info);
 }
 
-/* LIGHT THEME */
 :root {
-  --radius: 0.625rem;
+  --radius: 0.5rem;
+  --font-interface: "Segoe UI Variable", "Segoe UI", Inter, system-ui, sans-serif;
+  --font-display: Bahnschrift, "Arial Narrow", "Segoe UI", sans-serif;
+  --font-data: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
 
-  --background: oklch(0.985 0.002 240);
-  --foreground: oklch(0.18 0.01 240);
-  --card: oklch(1 0 0);
-  --card-foreground: oklch(0.18 0.01 240);
-  --popover: oklch(1 0 0);
-  --popover-foreground: oklch(0.18 0.01 240);
-
-  /* Primary: deep slate (professional security) */
-  --primary: oklch(0.32 0.02 240);
-  --primary-foreground: oklch(0.985 0 0);
-
-  --secondary: oklch(0.96 0.005 240);
-  --secondary-foreground: oklch(0.32 0.02 240);
-  --muted: oklch(0.96 0.005 240);
-  --muted-foreground: oklch(0.45 0.01 240);
-  --accent: oklch(0.94 0.01 240);
-  --accent-foreground: oklch(0.18 0.01 240);
-
+  --background: oklch(0.975 0.006 210);
+  --foreground: oklch(0.2 0.025 220);
+  --card: oklch(0.995 0.003 210);
+  --card-foreground: oklch(0.2 0.025 220);
+  --popover: oklch(0.995 0.003 210);
+  --popover-foreground: oklch(0.2 0.025 220);
+  --primary: oklch(0.48 0.115 205);
+  --primary-foreground: oklch(0.99 0.002 205);
+  --secondary: oklch(0.935 0.013 210);
+  --secondary-foreground: oklch(0.28 0.035 218);
+  --muted: oklch(0.94 0.01 210);
+  --muted-foreground: oklch(0.48 0.025 218);
+  --accent: oklch(0.915 0.025 202);
+  --accent-foreground: oklch(0.27 0.045 210);
   --destructive: oklch(0.55 0.22 25);
-  --border: oklch(0.9 0.005 240);
-  --input: oklch(0.9 0.005 240);
-  --ring: oklch(0.32 0.02 240);
-
-  /* Chart colors - cyber palette */
-  --chart-1: oklch(0.55 0.18 160); /* emerald */
-  --chart-2: oklch(0.62 0.16 220); /* blue */
-  --chart-3: oklch(0.7 0.18 60);  /* amber */
-  --chart-4: oklch(0.55 0.22 25); /* red */
-  --chart-5: oklch(0.6 0.18 290); /* purple */
-
-  /* Risk level colors */
+  --border: oklch(0.875 0.016 210);
+  --input: oklch(0.86 0.02 210);
+  --ring: oklch(0.58 0.12 205);
+  --chart-1: oklch(0.56 0.13 205);
+  --chart-2: oklch(0.59 0.13 245);
+  --chart-3: oklch(0.68 0.15 78);
+  --chart-4: oklch(0.58 0.21 25);
+  --chart-5: oklch(0.55 0.14 285);
   --critical: oklch(0.55 0.22 25);
-  --high: oklch(0.65 0.2 35);
-  --medium: oklch(0.75 0.16 75);
-  --low: oklch(0.6 0.15 160);
-  --info: oklch(0.62 0.16 220);
-
-  --sidebar: oklch(0.97 0.003 240);
-  --sidebar-foreground: oklch(0.18 0.01 240);
-  --sidebar-primary: oklch(0.32 0.02 240);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.94 0.01 240);
-  --sidebar-accent-foreground: oklch(0.18 0.01 240);
-  --sidebar-border: oklch(0.9 0.005 240);
-  --sidebar-ring: oklch(0.32 0.02 240);
+  --high: oklch(0.62 0.19 38);
+  --medium: oklch(0.68 0.15 78);
+  --low: oklch(0.51 0.13 160);
+  --info: oklch(0.56 0.13 225);
+  --sidebar: oklch(0.22 0.028 220);
+  --sidebar-foreground: oklch(0.93 0.011 210);
+  --sidebar-primary: oklch(0.76 0.13 194);
+  --sidebar-primary-foreground: oklch(0.16 0.025 220);
+  --sidebar-accent: oklch(0.28 0.035 217);
+  --sidebar-accent-foreground: oklch(0.97 0.007 205);
+  --sidebar-border: oklch(0.34 0.03 217);
+  --sidebar-ring: oklch(0.76 0.13 194);
 }
 
-/* DARK THEME - SOC (Security Operations Center) style */
 .dark {
-  --background: oklch(0.13 0.005 240);
-  --foreground: oklch(0.96 0.005 240);
-  --card: oklch(0.17 0.008 240);
-  --card-foreground: oklch(0.96 0.005 240);
-  --popover: oklch(0.17 0.008 240);
-  --popover-foreground: oklch(0.96 0.005 240);
-
-  /* Primary: cyber cyan/teal accent */
-  --primary: oklch(0.78 0.15 165);
-  --primary-foreground: oklch(0.13 0.005 240);
-
-  --secondary: oklch(0.22 0.01 240);
-  --secondary-foreground: oklch(0.96 0.005 240);
-  --muted: oklch(0.22 0.01 240);
-  --muted-foreground: oklch(0.65 0.01 240);
-  --accent: oklch(0.25 0.015 240);
-  --accent-foreground: oklch(0.96 0.005 240);
-
+  --background: oklch(0.125 0.018 220);
+  --foreground: oklch(0.92 0.012 205);
+  --card: oklch(0.16 0.022 218);
+  --card-foreground: oklch(0.93 0.012 205);
+  --popover: oklch(0.175 0.025 218);
+  --popover-foreground: oklch(0.94 0.012 205);
+  --primary: oklch(0.76 0.13 194);
+  --primary-foreground: oklch(0.14 0.025 220);
+  --secondary: oklch(0.205 0.026 218);
+  --secondary-foreground: oklch(0.91 0.013 205);
+  --muted: oklch(0.205 0.023 218);
+  --muted-foreground: oklch(0.66 0.025 210);
+  --accent: oklch(0.235 0.038 207);
+  --accent-foreground: oklch(0.95 0.012 200);
   --destructive: oklch(0.65 0.22 25);
-  --border: oklch(0.28 0.01 240);
-  --input: oklch(0.25 0.01 240);
-  --ring: oklch(0.78 0.15 165);
-
-  /* Chart colors - neon on dark */
-  --chart-1: oklch(0.78 0.15 165); /* neon teal */
-  --chart-2: oklch(0.7 0.18 220); /* sky blue */
-  --chart-3: oklch(0.78 0.18 60); /* amber */
-  --chart-4: oklch(0.65 0.22 25); /* red */
-  --chart-5: oklch(0.7 0.18 290); /* purple */
-
-  /* Risk level colors - vibrant on dark */
-  --critical: oklch(0.6 0.24 25);
-  --high: oklch(0.7 0.2 35);
-  --medium: oklch(0.78 0.16 75);
-  --low: oklch(0.7 0.18 160);
-  --info: oklch(0.7 0.16 220);
-
-  --sidebar: oklch(0.16 0.008 240);
-  --sidebar-foreground: oklch(0.96 0.005 240);
-  --sidebar-primary: oklch(0.78 0.15 165);
-  --sidebar-primary-foreground: oklch(0.13 0.005 240);
-  --sidebar-accent: oklch(0.25 0.015 240);
-  --sidebar-accent-foreground: oklch(0.96 0.005 240);
-  --sidebar-border: oklch(0.28 0.01 240);
-  --sidebar-ring: oklch(0.78 0.15 165);
+  --border: oklch(0.27 0.03 215);
+  --input: oklch(0.255 0.034 214);
+  --ring: oklch(0.76 0.13 194);
+  --chart-1: oklch(0.76 0.13 194);
+  --chart-2: oklch(0.71 0.14 240);
+  --chart-3: oklch(0.78 0.15 78);
+  --chart-4: oklch(0.67 0.22 25);
+  --chart-5: oklch(0.7 0.16 285);
+  --critical: oklch(0.67 0.22 25);
+  --high: oklch(0.72 0.2 38);
+  --medium: oklch(0.78 0.15 78);
+  --low: oklch(0.72 0.15 160);
+  --info: oklch(0.71 0.14 225);
+  --sidebar: oklch(0.105 0.018 220);
+  --sidebar-foreground: oklch(0.9 0.013 205);
+  --sidebar-primary: oklch(0.76 0.13 194);
+  --sidebar-primary-foreground: oklch(0.13 0.023 220);
+  --sidebar-accent: oklch(0.18 0.028 216);
+  --sidebar-accent-foreground: oklch(0.95 0.012 202);
+  --sidebar-border: oklch(0.235 0.028 215);
+  --sidebar-ring: oklch(0.76 0.13 194);
 }
 
 @layer base {
   * {
     @apply border-border outline-ring/50;
   }
-  body {
-    @apply bg-background text-foreground antialiased;
-    font-feature-settings: "cv11", "ss01";
+
+  html {
+    text-rendering: optimizeLegibility;
   }
 
-  /* Custom scrollbar - cyber style */
+  body {
+    @apply bg-background text-foreground antialiased;
+    font-feature-settings: "cv11", "ss01", "tnum";
+  }
+
+  button,
+  [role="button"] {
+    -webkit-tap-highlight-color: transparent;
+  }
+
   ::-webkit-scrollbar {
     width: 8px;
     height: 8px;
   }
+
   ::-webkit-scrollbar-track {
-    background: var(--muted);
-  }
-  ::-webkit-scrollbar-thumb {
-    background: var(--muted-foreground);
-    border-radius: 4px;
-  }
-  ::-webkit-scrollbar-thumb:hover {
-    background: var(--primary);
+    background: transparent;
   }
 
-  /* Selection color */
+  ::-webkit-scrollbar-thumb {
+    background: color-mix(in oklab, var(--muted-foreground) 45%, transparent);
+    border: 2px solid transparent;
+    border-radius: 999px;
+    background-clip: padding-box;
+  }
+
+  ::-webkit-scrollbar-thumb:hover {
+    background: color-mix(in oklab, var(--primary) 70%, transparent);
+    border: 2px solid transparent;
+    background-clip: padding-box;
+  }
+
   ::selection {
-    background-color: oklch(from var(--primary) l c h / 30%);
+    background-color: color-mix(in oklab, var(--primary) 32%, transparent);
   }
 }
 
 @layer utilities {
-  /* Glow effect for primary accent in dark mode */
-  .dark .glow-primary {
-    box-shadow: 0 0 12px oklch(from var(--primary) l c h / 40%);
+  .font-display {
+    font-family: var(--font-display);
   }
 
-  /* Status badge backgrounds */
+  .font-data {
+    font-family: var(--font-data);
+    font-variant-numeric: tabular-nums;
+  }
+
+  .app-canvas {
+    background-color: var(--background);
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--border) 32%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--border) 26%, transparent) 1px, transparent 1px),
+      radial-gradient(circle at 88% 4%, color-mix(in oklab, var(--primary) 9%, transparent), transparent 26rem);
+    background-size: 32px 32px, 32px 32px, 100% 100%;
+  }
+
+  .bg-grid-pattern {
+    background-image:
+      linear-gradient(to right, color-mix(in oklab, var(--border) 35%, transparent) 1px, transparent 1px),
+      linear-gradient(to bottom, color-mix(in oklab, var(--border) 35%, transparent) 1px, transparent 1px);
+    background-size: 36px 36px;
+  }
+
+  .signal-line {
+    background: linear-gradient(90deg, transparent, var(--primary), transparent);
+  }
+
+  .dark .glow-primary {
+    box-shadow: 0 0 24px color-mix(in oklab, var(--primary) 18%, transparent);
+  }
+
   .bg-risk-critical { background-color: var(--critical); color: white; }
   .bg-risk-high { background-color: var(--high); color: white; }
   .bg-risk-medium { background-color: var(--medium); color: black; }
   .bg-risk-low { background-color: var(--low); color: white; }
-
   .text-risk-critical { color: var(--critical); }
   .text-risk-high { color: var(--high); }
   .text-risk-medium { color: var(--medium); }
   .text-risk-low { color: var(--low); }
+}
 
-  /* Grid background pattern (subtle cyber feel) */
-  .bg-grid-pattern {
-    background-image:
-      linear-gradient(to right, oklch(from var(--border) l c h / 30%) 1px, transparent 1px),
-      linear-gradient(to bottom, oklch(from var(--border) l c h / 30%) 1px, transparent 1px);
-    background-size: 24px 24px;
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    scroll-behavior: auto !important;
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
   }
 }
